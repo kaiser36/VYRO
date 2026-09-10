@@ -8,11 +8,21 @@ interface ProductCatalogProps {
   onQuickView: (product: Product) => void;
   onOpenAdmin: () => void;
   onRequireAuth?: () => void;
+  selectedCategory?: string;
+  onSelectCategory?: (categoryId: string) => void;
 }
 
-export const ProductCatalog: React.FC<ProductCatalogProps> = ({ onQuickView, onOpenAdmin, onRequireAuth }) => {
+export const ProductCatalog: React.FC<ProductCatalogProps> = ({
+  onQuickView,
+  onOpenAdmin,
+  onRequireAuth,
+  selectedCategory: propCategory,
+  onSelectCategory: propOnSelectCategory,
+}) => {
   const { products, categories, isAdmin } = useStore();
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [internalCategory, setInternalCategory] = useState<string>('all');
+  const selectedCategory = propCategory !== undefined ? propCategory : internalCategory;
+  const setSelectedCategory = propOnSelectCategory || setInternalCategory;
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating'>('featured');
 

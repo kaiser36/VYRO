@@ -23,6 +23,7 @@ const MainAppContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>('store');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   // User Auth & Profile Modal states
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -67,7 +68,30 @@ const MainAppContent: React.FC = () => {
     setCurrentView('store');
   };
 
+  const handleSelectCategory = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    if (currentView !== 'store') {
+      setCurrentView('store');
+      setTimeout(() => {
+        const catalogElement = document.getElementById('catalog');
+        if (catalogElement) {
+          catalogElement.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    } else {
+      const catalogElement = document.getElementById('catalog');
+      if (catalogElement) {
+        catalogElement.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
+
   const handleNavigate = (sectionId: string) => {
+    if (sectionId === 'categories' || sectionId === 'catalog') {
+      scrollToCatalog();
+      return;
+    }
+
     if (currentView !== 'store') {
       setCurrentView('store');
       setTimeout(() => {
@@ -86,9 +110,6 @@ const MainAppContent: React.FC = () => {
       el.scrollIntoView({ behavior: 'smooth' });
     } else if (sectionId === 'hero') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else if (sectionId === 'categories') {
-      const catEl = document.getElementById('catalog');
-      if (catEl) catEl.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
@@ -136,6 +157,8 @@ const MainAppContent: React.FC = () => {
             onOpenProfile={() => handleOpenProfile('overview')}
             onOpenAuth={() => handleOpenAuth('login')}
             onOpenFavorites={handleOpenFavorites}
+            selectedCategory={selectedCategory}
+            onSelectCategory={handleSelectCategory}
           />
           <ProductDetailPage
             product={selectedProduct}
@@ -143,7 +166,7 @@ const MainAppContent: React.FC = () => {
             onSelectProduct={(p) => setSelectedProduct(p)}
             onRequireAuth={() => handleOpenAuth('login')}
           />
-          <Footer onOpenAdmin={handleOpenAdmin} />
+          <Footer onOpenAdmin={handleOpenAdmin} onSelectCategory={handleSelectCategory} />
         </>
       )}
 
@@ -157,15 +180,19 @@ const MainAppContent: React.FC = () => {
             onOpenProfile={() => handleOpenProfile('overview')}
             onOpenAuth={() => handleOpenAuth('login')}
             onOpenFavorites={handleOpenFavorites}
+            selectedCategory={selectedCategory}
+            onSelectCategory={handleSelectCategory}
           />
           <HeroSection onExploreClick={scrollToCatalog} />
           <ProductCatalog
             onQuickView={handleOpenProductDetail}
             onOpenAdmin={handleOpenAdmin}
             onRequireAuth={() => handleOpenAuth('login')}
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
           />
           <TechSection />
-          <Footer onOpenAdmin={handleOpenAdmin} />
+          <Footer onOpenAdmin={handleOpenAdmin} onSelectCategory={handleSelectCategory} />
         </>
       )}
 

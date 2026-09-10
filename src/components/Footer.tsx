@@ -4,13 +4,20 @@ import { useStore } from '../context/StoreContext';
 
 interface FooterProps {
   onOpenAdmin?: () => void;
+  onSelectCategory?: (categoryId: string) => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
+export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onSelectCategory }) => {
   const { isAdmin, categories } = useStore();
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCategoryClick = (categoryId: string) => {
+    if (onSelectCategory) {
+      onSelectCategory(categoryId);
+    }
   };
 
   return (
@@ -62,9 +69,13 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
             <ul className="space-y-2.5 text-xs text-[#6F6F6F]">
               {categories.map((cat) => (
                 <li key={cat.id}>
-                  <a href="#catalog" className="hover:text-black transition-colors">
+                  <button
+                    type="button"
+                    onClick={() => handleCategoryClick(cat.id)}
+                    className="hover:text-black transition-colors text-left cursor-pointer"
+                  >
                     {cat.name}
-                  </a>
+                  </button>
                 </li>
               ))}
             </ul>

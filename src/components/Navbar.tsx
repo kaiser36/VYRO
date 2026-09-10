@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ShoppingBag, ShieldCheck, User as UserIcon, Menu, X, Sparkles, Heart } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ShoppingBag, ShieldCheck, User as UserIcon, Menu, X, Heart, ChevronDown, Check, Layers } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useStore } from '../context/StoreContext';
 import { useUser } from '../context/UserContext';
@@ -11,6 +11,8 @@ interface NavbarProps {
   onOpenProfile: () => void;
   onOpenAuth: () => void;
   onOpenFavorites: () => void;
+  selectedCategory?: string;
+  onSelectCategory?: (categoryId: string) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -20,14 +22,46 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenProfile,
   onOpenAuth,
   onOpenFavorites,
+  selectedCategory,
+  onSelectCategory,
 }) => {
   const { totalItems } = useCart();
-  const { isAdmin } = useStore();
+  const { isAdmin, categories, products } = useStore();
   const { currentUser, isAuthenticated, favoritesCount } = useUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isCategoriesDropdownOpen, setIsCategoriesDropdownOpen] = useState(false);
+  const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(true);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close categories dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsCategoriesDropdownOpen(false);
+      }
+    };
+
+    if (isCategoriesDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isCategoriesDropdownOpen]);
 
   const handleNavClick = (sectionId: string) => {
     onNavigate(sectionId);
+    setMobileMenuOpen(false);
+    setIsCategoriesDropdownOpen(false);
+  };
+
+  const handleCategorySelect = (categoryId: string) => {
+    if (onSelectCategory) {
+      onSelectCategory(categoryId);
+    } else {
+      onNavigate('catalog');
+    }
+    setIsCategoriesDropdownOpen(false);
     setMobileMenuOpen(false);
   };
 
@@ -79,12 +113,86 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             Coleção Meias
           </button>
-          <button
-            onClick={() => handleNavClick('categories')}
-            className="text-sm font-medium text-[#6F6F6F] transition-colors hover:text-[#000000] cursor-pointer"
-          >
-            Categorias
-          </button>
+          {/* Categorias Dropdown Menu */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsCategoriesDropdownOpen(!isCategoriesDropdownOpen)}
+              className={`flex items-center gap-1.5 text-sm font-medium transition-colors cursor-pointer py-1 ${
+                isCategoriesDropdownOpen || (selectedCategory && selectedCategory !== 'all')
+                  ? 'text-cyan-600 font-semibold'
+                  : 'text-[#6F6F6F] hover:text-[#000000]'
+              }`}
+              aria-expanded={isCategoriesDropdownOpen}
+            >
+              <span>Categorias</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                  isCategoriesDropdownOpen ? 'rotate-180 text-cyan-600' : 'text-neutral-400'
+                }`}
+              />
+            </button>
+
+            {isCategoriesDropdownOpen && (
+              <div className="absolute top-full left-0 mt-2.5 w-64 bg-white/95 backdrop-blur-xl border border-neutral-200/90 rounded-2xl shadow-xl shadow-black/10 p-2 z-50 animate-fade-rise">
+                <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                  <span>Filtrar por Categoria</span>
+                  <Layers className="w-3.5 h-3.5 text-cyan-600" />
+                </div>
+
+                <div className="py-1 space-y-0.5 max-h-72 overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={() => handleCategorySelect('all')}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all cursor-pointer ${
+                      selectedCategory === 'all' || !selectedCategory
+                        ? 'bg-neutral-100 font-bold text-black'
+                        : 'text-neutral-600 hover:bg-neutral-50 hover:text-black'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      {(selectedCategory === 'all' || !selectedCategory) && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-600" />
+                      )}
+                      Todas as Meias
+                    </span>
+                    <span className="text-[10px] text-neutral-500 font-semibold px-2 py-0.5 rounded-md bg-neutral-100">
+                      {products.length}
+                    </span>
+                  </button>
+
+                  {categories.map((cat) => {
+                    const count = products.filter((p) => p.categoryId === cat.id).length;
+                    const isSelected = selectedCategory === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => handleCategorySelect(cat.id)}
+                        className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-cyan-50 font-bold text-cyan-950 border border-cyan-100/60'
+                            : 'text-neutral-600 hover:bg-neutral-50 hover:text-black'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 truncate pr-2">
+                          {isSelected && <Check className="w-3.5 h-3.5 text-cyan-600 shrink-0" />}
+                          <span className="truncate">{cat.name}</span>
+                        </span>
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 ${
+                            isSelected ? 'bg-cyan-100 text-cyan-700' : 'bg-neutral-100 text-neutral-400'
+                          }`}
+                        >
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => handleNavClick('technology')}
             className="text-sm font-medium text-[#6F6F6F] transition-colors hover:text-[#000000] cursor-pointer"
@@ -209,12 +317,75 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             Coleção Meias
           </button>
-          <button
-            onClick={() => handleNavClick('categories')}
-            className="text-left font-medium text-[#6F6F6F] py-2 border-b border-neutral-100"
-          >
-            Categorias
-          </button>
+          {/* Mobile Categorias Accordion */}
+          <div className="border-b border-neutral-100 py-1">
+            <button
+              type="button"
+              onClick={() => setMobileCategoriesOpen(!mobileCategoriesOpen)}
+              className="w-full flex items-center justify-between font-medium text-[#6F6F6F] py-2 cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <span className={selectedCategory && selectedCategory !== 'all' ? 'text-black font-semibold' : ''}>
+                  Categorias
+                </span>
+                {selectedCategory && selectedCategory !== 'all' && (
+                  <span className="text-[10px] bg-cyan-100 text-cyan-800 font-bold px-2 py-0.5 rounded-full">
+                    Ativo
+                  </span>
+                )}
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-neutral-400 transition-transform duration-200 ${
+                  mobileCategoriesOpen ? 'rotate-180 text-black' : ''
+                }`}
+              />
+            </button>
+
+            {mobileCategoriesOpen && (
+              <div className="pl-2 pr-1 py-1.5 space-y-1 bg-neutral-50/80 rounded-xl my-1 border border-neutral-100">
+                <button
+                  type="button"
+                  onClick={() => handleCategorySelect('all')}
+                  className={`w-full text-left text-xs py-2 px-3 rounded-lg flex items-center justify-between cursor-pointer ${
+                    selectedCategory === 'all' || !selectedCategory
+                      ? 'font-bold text-black bg-white shadow-xs'
+                      : 'text-neutral-600 hover:text-black'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    {(selectedCategory === 'all' || !selectedCategory) && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-600" />
+                    )}
+                    Todas as Meias
+                  </span>
+                  <span className="text-[10px] text-neutral-400">{products.length}</span>
+                </button>
+
+                {categories.map((cat) => {
+                  const count = products.filter((p) => p.categoryId === cat.id).length;
+                  const isSelected = selectedCategory === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => handleCategorySelect(cat.id)}
+                      className={`w-full text-left text-xs py-2 px-3 rounded-lg flex items-center justify-between cursor-pointer ${
+                        isSelected
+                          ? 'font-bold text-cyan-900 bg-cyan-50 border border-cyan-100'
+                          : 'text-neutral-600 hover:text-black'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        {isSelected && <Check className="w-3 h-3 text-cyan-600 shrink-0" />}
+                        <span className="truncate">{cat.name}</span>
+                      </div>
+                      <span className="text-[10px] text-neutral-400">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
           <button
             onClick={() => handleNavClick('technology')}
             className="text-left font-medium text-[#6F6F6F] py-2 border-b border-neutral-100"

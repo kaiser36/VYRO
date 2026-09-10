@@ -40,8 +40,7 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({ onQuickView, onO
       {/* Section Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6 border-b border-neutral-100 pb-8">
         <div>
-          <div className="flex items-center gap-2 text-cyan-600 font-semibold text-xs uppercase tracking-widest mb-2">
-            <Sparkles className="w-4 h-4" />
+          <div className="text-cyan-600 font-semibold text-xs uppercase tracking-widest mb-2">
             <span>Coleção de Alta Performance</span>
           </div>
           <h2 className="font-serif text-4xl sm:text-5xl md:text-6xl text-black font-normal tracking-tight">

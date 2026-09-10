@@ -154,10 +154,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* CTA button: "Ver Meias" */}
           <button
             onClick={() => handleNavClick('catalog')}
-            className="hidden lg:inline-flex items-center gap-2 rounded-full px-5 py-2 text-xs bg-[#000000] text-white hover:scale-[1.03] transition-all duration-300 font-medium shadow-xs hover:shadow active:scale-95 cursor-pointer"
+            className="hidden lg:inline-flex items-center rounded-full px-5 py-2 text-xs bg-[#000000] text-white hover:scale-[1.03] transition-all duration-300 font-medium shadow-xs hover:shadow active:scale-95 cursor-pointer"
           >
             <span>Ver Meias</span>
-            <Sparkles className="w-3 h-3 text-cyan-400" />
           </button>
 
           {/* Mobile menu trigger */}

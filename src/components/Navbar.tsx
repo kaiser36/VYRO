@@ -74,7 +74,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="relative z-20 w-full bg-white/80 backdrop-blur-md border-b border-black/[0.04] sticky top-0 transition-all duration-300">
+    <header className="relative z-20 w-full bg-white border-b border-neutral-200 sticky top-0 transition-all duration-300 shadow-xs">
       <div className="flex justify-between items-center px-4 sm:px-8 py-4 sm:py-5 max-w-7xl mx-auto">
         {/* Logo */}
         <div
@@ -134,7 +134,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             {isCategoriesDropdownOpen && (
-              <div className="absolute top-full left-0 mt-2.5 w-64 bg-white/95 backdrop-blur-xl border border-neutral-200/90 rounded-2xl shadow-xl shadow-black/10 p-2 z-50 animate-fade-rise">
+              <div className="absolute top-full left-0 mt-2.5 w-64 bg-white border border-neutral-200 rounded-2xl shadow-2xl p-2 z-50 animate-fade-rise">
                 <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
                   <span>Filtrar por Categoria</span>
                   <Layers className="w-3.5 h-3.5 text-cyan-600" />
@@ -342,7 +342,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             {mobileCategoriesOpen && (
-              <div className="pl-2 pr-1 py-1.5 space-y-1 bg-neutral-50/80 rounded-xl my-1 border border-neutral-100">
+              <div className="pl-2 pr-1 py-1.5 space-y-1 bg-neutral-50 rounded-xl my-1 border border-neutral-200">
                 <button
                   type="button"
                   onClick={() => handleCategorySelect('all')}

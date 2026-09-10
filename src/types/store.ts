@@ -11,6 +11,39 @@ export interface GuaranteeBadge {
   enabled: boolean;
 }
 
+export interface LoyaltyReward {
+  id: string;
+  title: string;
+  pointsCost: number;
+  description: string;
+  enabled: boolean;
+  discountType?: 'amount' | 'percent' | 'free_shipping' | 'free_product';
+  discountValue?: number;
+  couponCode?: string;
+  minOrderValue?: number;
+  tierRequired?: 'All' | 'Silver Athlete' | 'Pro Kinetic';
+}
+
+export interface LoyaltyGoal {
+  id: string;
+  title: string;
+  description: string;
+  pointsReward: number;
+  type: 'first_order' | 'min_spend' | 'order_count' | 'complete_profile' | 'favorites_count' | 'newsletter' | 'custom';
+  targetValue?: number;
+  enabled: boolean;
+  icon?: 'shopping-bag' | 'user-check' | 'heart' | 'mail' | 'award' | 'zap' | 'sparkles';
+}
+
+export interface LoyaltySettings {
+  pointsPerEuro: number;
+  welcomeBonus: number;
+  silverTierThreshold: number;
+  proTierThreshold: number;
+  rewards: LoyaltyReward[];
+  goals: LoyaltyGoal[];
+}
+
 export interface StoreSettings {
   freeShippingThreshold: number;
   shippingCost: number;
@@ -19,6 +52,7 @@ export interface StoreSettings {
   availableSizes: string[];
   availableColors: ProductColor[];
   guaranteeBadges: GuaranteeBadge[];
+  loyaltySettings: LoyaltySettings;
 }
 
 export interface OrderItem {

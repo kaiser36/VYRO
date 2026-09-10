@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle2, ShieldCheck, CreditCard, Smartphone, Building2, ArrowRight, Sparkles, User } from 'lucide-react';
+import { X, CheckCircle2, ShieldCheck, CreditCard, Smartphone, Building2, ArrowRight, Sparkles, User, Ticket, Tag, Check } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useStore } from '../context/StoreContext';
 import { useUser } from '../context/UserContext';
@@ -12,11 +12,22 @@ interface CheckoutModalProps {
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onViewOrders }) => {
   const { items, total, clearCart } = useCart();
-  const { addOrder } = useStore();
-  const { currentUser, isAuthenticated, addPoints } = useUser();
+  const { addOrder, storeSettings } = useStore();
+  const { currentUser, isAuthenticated, addPoints, useVoucher } = useUser();
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [paymentMethod, setPaymentMethod] = useState<'mbway' | 'multibanco' | 'card'>('mbway');
   const [earnedPoints, setEarnedPoints] = useState(0);
+
+  // Coupon & Voucher state
+  const [couponCodeInput, setCouponCodeInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discountType: 'amount' | 'percent' | 'free_shipping' | 'free_product';
+    discountValue: number;
+    title: string;
+  } | null>(null);
+  const [couponMessage, setCouponMessage] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -53,6 +64,69 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
 
   if (!isOpen) return null;
 
+  // Calculate discount
+  let discountAmount = 0;
+  if (appliedCoupon) {
+    if (appliedCoupon.discountType === 'amount') {
+      discountAmount = Math.min(total, appliedCoupon.discountValue);
+    } else if (appliedCoupon.discountType === 'percent') {
+      discountAmount = (total * appliedCoupon.discountValue) / 100;
+    } else if (appliedCoupon.discountType === 'free_shipping') {
+      discountAmount = 0; // Handled as shipping waiver
+    }
+  }
+
+  const finalTotal = Math.max(0, total - discountAmount);
+
+  const handleApplyCoupon = (codeToApply?: string) => {
+    const code = (codeToApply || couponCodeInput).trim().toUpperCase();
+    setCouponError(null);
+    setCouponMessage(null);
+
+    if (!code) return;
+
+    // Check user redeemed vouchers first
+    const userVoucher = (currentUser?.redeemedVouchers || []).find(
+      (v) => v.code.toUpperCase() === code && !v.isUsed
+    );
+
+    if (userVoucher) {
+      setAppliedCoupon({
+        code: userVoucher.code,
+        discountType: userVoucher.discountType,
+        discountValue: userVoucher.discountValue,
+        title: userVoucher.title,
+      });
+      setCouponMessage(`Cupão ${userVoucher.code} aplicado com sucesso!`);
+      setCouponCodeInput('');
+      return;
+    }
+
+    // Check store loyalty rewards with coupon codes
+    const rewardMatch = (storeSettings.loyaltySettings?.rewards || []).find(
+      (r) => r.couponCode?.toUpperCase() === code && r.enabled
+    );
+
+    if (rewardMatch) {
+      if (rewardMatch.minOrderValue && total < rewardMatch.minOrderValue) {
+        setCouponError(`Este cupão exige uma encomenda mínima de €${rewardMatch.minOrderValue.toFixed(2)}.`);
+        return;
+      }
+
+      setAppliedCoupon({
+        code: rewardMatch.couponCode || code,
+        discountType: rewardMatch.discountType || 'amount',
+        discountValue: rewardMatch.discountValue || 5,
+        title: rewardMatch.title,
+      });
+      setCouponMessage(`Oferta "${rewardMatch.title}" aplicada!`);
+      setCouponCodeInput('');
+      return;
+    }
+
+    setCouponError('Código de cupão inválido ou já utilizado.');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const customerEmail = currentUser ? currentUser.email : formData.email;
@@ -67,15 +141,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
         quantity: it.quantity,
         price: it.product.price,
       })),
-      totalAmount: total,
+      totalAmount: finalTotal,
       paymentMethod,
       status: 'Pago',
     });
 
-    const pts = Math.round(total * 10);
+    const ptsRate = storeSettings.loyaltySettings?.pointsPerEuro || 10;
+    const pts = Math.round(finalTotal * ptsRate);
     setEarnedPoints(pts);
     if (isAuthenticated) {
       addPoints(pts);
+      if (appliedCoupon) {
+        useVoucher(appliedCoupon.code);
+      }
     }
 
     setOrderNumber(newOrder.id);
@@ -136,7 +214,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
               <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200/80 text-xs">
                 <div className="flex justify-between font-semibold text-black mb-2">
                   <span>Resumo do Pedido ({items.length} itens)</span>
-                  <span className="text-cyan-600 text-sm">Total: €{total.toFixed(2)}</span>
+                  <div className="text-right">
+                    {discountAmount > 0 ? (
+                      <div>
+                        <span className="text-neutral-400 line-through text-xs mr-2">€{total.toFixed(2)}</span>
+                        <span className="text-emerald-700 text-sm font-bold">€{finalTotal.toFixed(2)}</span>
+                      </div>
+                    ) : (
+                      <span className="text-cyan-600 text-sm">Total: €{total.toFixed(2)}</span>
+                    )}
+                  </div>
                 </div>
                 <div className="text-[#6F6F6F] space-y-1">
                   {items.map((it) => (
@@ -147,6 +234,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                       <span>€{(it.product.price * it.quantity).toFixed(2)}</span>
                     </div>
                   ))}
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-emerald-700 font-semibold pt-1 border-t border-neutral-200/60">
+                      <span>Desconto ({appliedCoupon?.code}):</span>
+                      <span>-€{discountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -219,6 +312,87 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                 </div>
               </div>
 
+              {/* Cupões & Ofertas do Clube */}
+              <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200/80 text-xs">
+                <div className="flex items-center gap-2 mb-2 font-bold text-black uppercase tracking-wider text-[11px]">
+                  <Tag className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Cupão de Desconto / Oferta do Clube</span>
+                </div>
+
+                {appliedCoupon ? (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5 font-bold text-emerald-900">
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Cupão Ativo: <code className="bg-white px-1.5 py-0.5 rounded border border-emerald-200">{appliedCoupon.code}</code></span>
+                      </div>
+                      <span className="text-[11px] text-emerald-700 block mt-0.5">
+                        {appliedCoupon.title} • -€{discountAmount.toFixed(2)} de desconto
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAppliedCoupon(null)}
+                      className="text-[11px] font-bold text-neutral-500 hover:text-rose-600 underline cursor-pointer"
+                    >
+                      Remover
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Insere o código (ex: VYRO5OFF)"
+                        value={couponCodeInput}
+                        onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
+                        className="flex-1 px-3 py-2 bg-white border border-neutral-300 rounded-xl font-mono text-xs uppercase focus:outline-none focus:border-black"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleApplyCoupon()}
+                        className="px-4 py-2 bg-neutral-900 hover:bg-black text-white rounded-xl text-xs font-bold cursor-pointer transition-all"
+                      >
+                        Aplicar
+                      </button>
+                    </div>
+
+                    {/* Quick select from user redeemed vouchers */}
+                    {isAuthenticated && (currentUser?.redeemedVouchers || []).filter((v) => !v.isUsed).length > 0 && (
+                      <div className="mt-2.5 pt-2 border-t border-neutral-200/60">
+                        <span className="text-[10px] text-neutral-500 block mb-1 font-medium">Os teus cupões disponíveis:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(currentUser?.redeemedVouchers || [])
+                            .filter((v) => !v.isUsed)
+                            .map((v) => (
+                              <button
+                                key={v.id}
+                                type="button"
+                                onClick={() => handleApplyCoupon(v.code)}
+                                className="px-2 py-1 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-900 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                              >
+                                <Ticket className="w-3 h-3 text-purple-600" />
+                                <span>{v.code} ({v.title})</span>
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {couponMessage && (
+                      <p className="mt-1.5 text-xs text-emerald-700 font-medium flex items-center gap-1">
+                        <Check className="w-3 h-3" /> {couponMessage}
+                      </p>
+                    )}
+                    {couponError && (
+                      <p className="mt-1.5 text-xs text-rose-600 font-medium">
+                        {couponError}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Payment Methods */}
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-black mb-3">
@@ -274,7 +448,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                 type="submit"
                 className="w-full py-4 rounded-full bg-black text-white font-medium text-sm hover:scale-[1.01] active:scale-95 transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>Confirmar Encomenda • €{total.toFixed(2)}</span>
+                <span>
+                  Confirmar Encomenda • €{finalTotal.toFixed(2)}
+                  {discountAmount > 0 && ` (Desconto -€${discountAmount.toFixed(2)})`}
+                </span>
                 <ArrowRight className="w-4 h-4 text-cyan-400" />
               </button>
             </form>

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, RegisterData } from '../types/user';
+import { User, RegisterData, RedeemedVoucher } from '../types/user';
+import { LoyaltyReward } from '../types/store';
 
 interface UserContextType {
   currentUser: User | null;
@@ -12,7 +13,12 @@ interface UserContextType {
   isFavorite: (productId: string) => boolean;
   updateProfile: (data: Partial<User>) => void;
   addPoints: (pointsToAdd: number) => void;
+  claimGoal: (goalId: string, pointsReward: number) => { success: boolean; message: string };
+  redeemReward: (reward: LoyaltyReward) => { success: boolean; voucher?: RedeemedVoucher; error?: string };
+  useVoucher: (voucherCode: string) => void;
   loginAsDemo: () => void;
+  users: User[];
+  updateUserPoints: (userId: string, newPoints: number) => void;
 }
 
 const STORAGE_KEYS = {
@@ -179,6 +185,119 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  const updateUserPoints = (userId: string, newPoints: number) => {
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id !== userId) return u;
+        const validPoints = Math.max(0, newPoints);
+        let newTier: User['tier'] = u.tier;
+        if (validPoints >= 1000) {
+          newTier = 'Pro Kinetic';
+        } else if (validPoints >= 400) {
+          newTier = 'Silver Athlete';
+        } else {
+          newTier = 'Standard';
+        }
+        return {
+          ...u,
+          points: validPoints,
+          tier: newTier,
+        };
+      })
+    );
+  };
+
+  const claimGoal = (goalId: string, pointsReward: number): { success: boolean; message: string } => {
+    if (!currentUser) return { success: false, message: 'Inicia sessão para reivindicar os teus pontos.' };
+    const completed = currentUser.completedGoalIds || [];
+    if (completed.includes(goalId)) {
+      return { success: false, message: 'Esta meta já foi alcançada e recompensada.' };
+    }
+
+    const newCompleted = [...completed, goalId];
+    const newTotal = (currentUser.points || 0) + pointsReward;
+    let newTier: User['tier'] = currentUser.tier;
+    if (newTotal >= 1000) newTier = 'Pro Kinetic';
+    else if (newTotal >= 400) newTier = 'Silver Athlete';
+    else newTier = 'Standard';
+
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === currentUser.id
+          ? { ...u, points: newTotal, tier: newTier, completedGoalIds: newCompleted }
+          : u
+      )
+    );
+
+    return { success: true, message: `Parabéns! +${pointsReward} Pontos creditados na tua conta!` };
+  };
+
+  const redeemReward = (
+    reward: LoyaltyReward
+  ): { success: boolean; voucher?: RedeemedVoucher; error?: string } => {
+    if (!currentUser) {
+      return { success: false, error: 'Inicia sessão para resgatar ofertas do clube.' };
+    }
+
+    const currentPts = currentUser.points || 0;
+    if (currentPts < reward.pointsCost) {
+      return {
+        success: false,
+        error: `Pontos insuficientes. Tens ${currentPts} pts e precisas de ${reward.pointsCost} pts.`,
+      };
+    }
+
+    const newPts = currentPts - reward.pointsCost;
+    let newTier: User['tier'] = currentUser.tier;
+    if (newPts >= 1000) newTier = 'Pro Kinetic';
+    else if (newPts >= 400) newTier = 'Silver Athlete';
+    else newTier = 'Standard';
+
+    const voucherCode =
+      reward.couponCode || `VYRO-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+
+    const newVoucher: RedeemedVoucher = {
+      id: 'vouch-' + Date.now().toString(36),
+      rewardId: reward.id,
+      title: reward.title,
+      code: voucherCode,
+      discountType: reward.discountType || 'amount',
+      discountValue: reward.discountValue || 5,
+      redeemedAt: new Date().toISOString(),
+      isUsed: false,
+    };
+
+    const currentVouchers = currentUser.redeemedVouchers || [];
+
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === currentUser.id
+          ? {
+              ...u,
+              points: newPts,
+              tier: newTier,
+              redeemedVouchers: [newVoucher, ...currentVouchers],
+            }
+          : u
+      )
+    );
+
+    return { success: true, voucher: newVoucher };
+  };
+
+  const useVoucher = (voucherCode: string) => {
+    if (!currentUser) return;
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id !== currentUser.id) return u;
+        const vouchers = (u.redeemedVouchers || []).map((v) =>
+          v.code.toUpperCase() === voucherCode.toUpperCase() ? { ...v, isUsed: true } : v
+        );
+        return { ...u, redeemedVouchers: vouchers };
+      })
+    );
+  };
+
   const loginAsDemo = () => {
     const demo = users.find((u) => u.email === 'tiago@vyro.pt') || INITIAL_DEMO_USERS[0];
     setActiveUserId(demo.id);
@@ -197,7 +316,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isFavorite,
         updateProfile,
         addPoints,
+        claimGoal,
+        redeemReward,
+        useVoucher,
         loginAsDemo,
+        users,
+        updateUserPoints,
       }}
     >
       {children}

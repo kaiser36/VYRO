@@ -5,6 +5,17 @@ export interface Address {
   country: string;
 }
 
+export interface RedeemedVoucher {
+  id: string;
+  rewardId: string;
+  title: string;
+  code: string;
+  discountType: 'amount' | 'percent' | 'free_shipping' | 'free_product';
+  discountValue: number;
+  redeemedAt: string;
+  isUsed: boolean;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -16,6 +27,8 @@ export interface User {
   points: number;
   tier: 'Standard' | 'Silver Athlete' | 'Pro Kinetic';
   preferredSize?: string;
+  completedGoalIds?: string[];
+  redeemedVouchers?: RedeemedVoucher[];
   createdAt: string;
 }
 

@@ -1,5 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Category, GuaranteeBadge, Order, Product, ProductColor, StoreSettings } from '../types/store';
+import {
+  Category,
+  GuaranteeBadge,
+  Order,
+  Product,
+  ProductColor,
+  StoreSettings,
+  LoyaltyReward,
+  LoyaltyGoal,
+  LoyaltySettings,
+} from '../types/store';
 import { INITIAL_CATEGORIES, INITIAL_ORDERS, INITIAL_PRODUCTS } from '../data/initialData';
 
 export const DEFAULT_STORE_SETTINGS: StoreSettings = {
@@ -48,6 +58,134 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
       enabled: true,
     },
   ],
+  loyaltySettings: {
+    pointsPerEuro: 10,
+    welcomeBonus: 100,
+    silverTierThreshold: 400,
+    proTierThreshold: 1000,
+    rewards: [
+      {
+        id: 'rew-free-shipping',
+        title: 'Envio Grátis Imediato',
+        pointsCost: 250,
+        description: 'Portes grátis em qualquer encomenda, sem valor mínimo.',
+        enabled: true,
+        discountType: 'free_shipping',
+        discountValue: 0,
+        couponCode: 'ENVIOZERO',
+        minOrderValue: 0,
+        tierRequired: 'All',
+      },
+      {
+        id: 'rew-5eur-voucher',
+        title: 'Vale de 5€ Desconto',
+        pointsCost: 500,
+        description: 'Desconto direto no carrinho em qualquer modelo de meias.',
+        enabled: true,
+        discountType: 'amount',
+        discountValue: 5,
+        couponCode: 'VYRO5OFF',
+        minOrderValue: 20,
+        tierRequired: 'All',
+      },
+      {
+        id: 'rew-10eur-silver',
+        title: 'Voucher 10€ Silver Athlete',
+        pointsCost: 800,
+        description: '10€ de desconto imediato em compras superiores a 35€.',
+        enabled: true,
+        discountType: 'amount',
+        discountValue: 10,
+        couponCode: 'SILVER10',
+        minOrderValue: 35,
+        tierRequired: 'Silver Athlete',
+      },
+      {
+        id: 'rew-pro-20percent',
+        title: 'Desconto 20% Pro Kinetic',
+        pointsCost: 1200,
+        description: 'Desconto exclusivo de 20% em todo o carrinho para atletas Pro.',
+        enabled: true,
+        discountType: 'percent',
+        discountValue: 20,
+        couponCode: 'PRO20KINETIC',
+        minOrderValue: 40,
+        tierRequired: 'Pro Kinetic',
+      },
+      {
+        id: 'rew-free-socks',
+        title: 'Par de Meias Grátis',
+        pointsCost: 1500,
+        description: 'Um par de meias VYRO da tua escolha incluído na encomenda.',
+        enabled: true,
+        discountType: 'free_product',
+        discountValue: 19.90,
+        couponCode: 'MEIAGRATIS',
+        minOrderValue: 25,
+        tierRequired: 'All',
+      },
+    ],
+    goals: [
+      {
+        id: 'goal-first-order',
+        title: 'Primeira Corrida / Encomenda',
+        description: 'Realiza a tua 1ª encomenda de meias VYRO na loja online.',
+        pointsReward: 150,
+        type: 'first_order',
+        targetValue: 1,
+        enabled: true,
+        icon: 'shopping-bag',
+      },
+      {
+        id: 'goal-complete-profile',
+        title: 'Perfil de Atleta Completo',
+        description: 'Configura o teu tamanho de meias habitual e morada de entrega.',
+        pointsReward: 50,
+        type: 'complete_profile',
+        enabled: true,
+        icon: 'user-check',
+      },
+      {
+        id: 'goal-favorites-3',
+        title: 'Atleta Inspirado',
+        description: 'Guarda pelo menos 3 modelos na tua lista de favoritos.',
+        pointsReward: 30,
+        type: 'favorites_count',
+        targetValue: 3,
+        enabled: true,
+        icon: 'heart',
+      },
+      {
+        id: 'goal-big-order',
+        title: 'Treino de Longa Distância (>50€)',
+        description: 'Faz uma encomenda de valor igual ou superior a 50€.',
+        pointsReward: 200,
+        type: 'min_spend',
+        targetValue: 50,
+        enabled: true,
+        icon: 'zap',
+      },
+      {
+        id: 'goal-newsletter',
+        title: 'Comunidade & Clube VYRO',
+        description: 'Subscreve as novidades técnicas da comunidade VYRO.',
+        pointsReward: 40,
+        type: 'newsletter',
+        enabled: true,
+        icon: 'mail',
+      },
+      {
+        id: 'goal-triathlon-pack',
+        title: 'Pack Triatleta (3 Encomendas)',
+        description: 'Atinge um total de 3 encomendas completadas na loja.',
+        pointsReward: 300,
+        type: 'order_count',
+        targetValue: 3,
+        enabled: true,
+        icon: 'award',
+      },
+    ],
+  },
 };
 
 interface StoreContextType {
@@ -75,6 +213,13 @@ interface StoreContextType {
   deleteStoreSize: (size: string) => void;
   addStoreColor: (color: ProductColor) => void;
   deleteStoreColor: (colorName: string) => void;
+  updateLoyaltySettings: (newSettings: Partial<LoyaltySettings>) => void;
+  addLoyaltyReward: (rewardData: Omit<LoyaltyReward, 'id'>) => void;
+  updateLoyaltyReward: (id: string, rewardData: Partial<LoyaltyReward>) => void;
+  deleteLoyaltyReward: (id: string) => void;
+  addLoyaltyGoal: (goalData: Omit<LoyaltyGoal, 'id'>) => void;
+  updateLoyaltyGoal: (id: string, goalData: Partial<LoyaltyGoal>) => void;
+  deleteLoyaltyGoal: (id: string) => void;
   resetStoreData: () => void;
 }
 
@@ -119,7 +264,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-      return saved ? { ...DEFAULT_STORE_SETTINGS, ...JSON.parse(saved) } : DEFAULT_STORE_SETTINGS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...DEFAULT_STORE_SETTINGS,
+          ...parsed,
+          loyaltySettings: {
+            ...DEFAULT_STORE_SETTINGS.loyaltySettings,
+            ...(parsed.loyaltySettings || {}),
+            rewards:
+              parsed.loyaltySettings?.rewards && parsed.loyaltySettings.rewards.length > 0
+                ? parsed.loyaltySettings.rewards
+                : DEFAULT_STORE_SETTINGS.loyaltySettings.rewards,
+            goals:
+              parsed.loyaltySettings?.goals && parsed.loyaltySettings.goals.length > 0
+                ? parsed.loyaltySettings.goals
+                : DEFAULT_STORE_SETTINGS.loyaltySettings.goals,
+          },
+        };
+      }
+      return DEFAULT_STORE_SETTINGS;
     } catch {
       return DEFAULT_STORE_SETTINGS;
     }
@@ -311,6 +475,88 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
   };
 
+  const updateLoyaltySettings = (newSettings: Partial<LoyaltySettings>) => {
+    setStoreSettings((prev) => ({
+      ...prev,
+      loyaltySettings: {
+        ...prev.loyaltySettings,
+        ...newSettings,
+      },
+    }));
+  };
+
+  const addLoyaltyReward = (rewardData: Omit<LoyaltyReward, 'id'>) => {
+    const newRew: LoyaltyReward = {
+      ...rewardData,
+      id: 'rew-' + Date.now().toString(36),
+    };
+    setStoreSettings((prev) => ({
+      ...prev,
+      loyaltySettings: {
+        ...prev.loyaltySettings,
+        rewards: [...(prev.loyaltySettings?.rewards || []), newRew],
+      },
+    }));
+  };
+
+  const updateLoyaltyReward = (id: string, rewardData: Partial<LoyaltyReward>) => {
+    setStoreSettings((prev) => ({
+      ...prev,
+      loyaltySettings: {
+        ...prev.loyaltySettings,
+        rewards: (prev.loyaltySettings?.rewards || []).map((r) =>
+          r.id === id ? { ...r, ...rewardData } : r
+        ),
+      },
+    }));
+  };
+
+  const deleteLoyaltyReward = (id: string) => {
+    setStoreSettings((prev) => ({
+      ...prev,
+      loyaltySettings: {
+        ...prev.loyaltySettings,
+        rewards: (prev.loyaltySettings?.rewards || []).filter((r) => r.id !== id),
+      },
+    }));
+  };
+
+  const addLoyaltyGoal = (goalData: Omit<LoyaltyGoal, 'id'>) => {
+    const newGoal: LoyaltyGoal = {
+      ...goalData,
+      id: 'goal-' + Date.now().toString(36),
+    };
+    setStoreSettings((prev) => ({
+      ...prev,
+      loyaltySettings: {
+        ...prev.loyaltySettings,
+        goals: [...(prev.loyaltySettings?.goals || []), newGoal],
+      },
+    }));
+  };
+
+  const updateLoyaltyGoal = (id: string, goalData: Partial<LoyaltyGoal>) => {
+    setStoreSettings((prev) => ({
+      ...prev,
+      loyaltySettings: {
+        ...prev.loyaltySettings,
+        goals: (prev.loyaltySettings?.goals || []).map((g) =>
+          g.id === id ? { ...g, ...goalData } : g
+        ),
+      },
+    }));
+  };
+
+  const deleteLoyaltyGoal = (id: string) => {
+    setStoreSettings((prev) => ({
+      ...prev,
+      loyaltySettings: {
+        ...prev.loyaltySettings,
+        goals: (prev.loyaltySettings?.goals || []).filter((g) => g.id !== id),
+      },
+    }));
+  };
+
   const resetStoreData = () => {
     setProducts(INITIAL_PRODUCTS);
     setCategories(INITIAL_CATEGORIES);
@@ -344,6 +590,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deleteStoreSize,
         addStoreColor,
         deleteStoreColor,
+        updateLoyaltySettings,
+        addLoyaltyReward,
+        updateLoyaltyReward,
+        deleteLoyaltyReward,
+        addLoyaltyGoal,
+        updateLoyaltyGoal,
+        deleteLoyaltyGoal,
         resetStoreData,
       }}
     >

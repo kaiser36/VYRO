@@ -33,9 +33,20 @@ import {
   Filter,
   ArrowUpDown,
   RotateCcw,
+  Gift,
+  Award,
+  Users,
+  Target,
+  Coins,
+  Ticket,
+  Trophy,
+  Heart,
+  Mail,
+  UserCheck,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
-import { GuaranteeBadge, ProductColor } from '../types/store';
+import { useUser } from '../context/UserContext';
+import { GuaranteeBadge, ProductColor, LoyaltyGoal, LoyaltyReward } from '../types/store';
 
 interface AdminPortalPageProps {
   onBackToStore: () => void;
@@ -75,7 +86,16 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     deleteStoreSize,
     addStoreColor,
     deleteStoreColor,
+    updateLoyaltySettings,
+    addLoyaltyReward,
+    updateLoyaltyReward,
+    deleteLoyaltyReward,
+    addLoyaltyGoal,
+    updateLoyaltyGoal,
+    deleteLoyaltyGoal,
   } = useStore();
+
+  const { users, updateUserPoints } = useUser();
 
   // Scroll to top on mount
   useEffect(() => {
@@ -88,7 +108,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
 
   // Dashboard active tab
   const [activeTab, setActiveTab] = useState<
-    'add-product' | 'list-products' | 'categories' | 'settings' | 'stats'
+    'add-product' | 'list-products' | 'categories' | 'settings' | 'loyalty' | 'stats'
   >('add-product');
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -138,6 +158,46 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
   // New Guarantee Badge form state
   const [newGbTitle, setNewGbTitle] = useState('');
   const [newGbSubtitle, setNewGbSubtitle] = useState('');
+
+  // Loyalty & Points Sub-navigation & Settings State
+  const [loyaltySubTab, setLoyaltySubTab] = useState<'goals' | 'offers' | 'members' | 'rules'>('goals');
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+
+  const [pointsPerEuroInput, setPointsPerEuroInput] = useState(
+    (storeSettings.loyaltySettings?.pointsPerEuro || 10).toString()
+  );
+  const [welcomeBonusInput, setWelcomeBonusInput] = useState(
+    (storeSettings.loyaltySettings?.welcomeBonus || 100).toString()
+  );
+  const [silverTierInput, setSilverTierInput] = useState(
+    (storeSettings.loyaltySettings?.silverTierThreshold || 400).toString()
+  );
+  const [proTierInput, setProTierInput] = useState(
+    (storeSettings.loyaltySettings?.proTierThreshold || 1000).toString()
+  );
+
+  // New Goal Form State
+  const [newGoalTitle, setNewGoalTitle] = useState('');
+  const [newGoalDesc, setNewGoalDesc] = useState('');
+  const [newGoalPoints, setNewGoalPoints] = useState('100');
+  const [newGoalType, setNewGoalType] = useState<LoyaltyGoal['type']>('first_order');
+  const [newGoalTargetValue, setNewGoalTargetValue] = useState('1');
+  const [newGoalIcon, setNewGoalIcon] = useState<NonNullable<LoyaltyGoal['icon']>>('shopping-bag');
+
+  // New Reward / Offer Form State
+  const [newRewardTitle, setNewRewardTitle] = useState('');
+  const [newRewardPoints, setNewRewardPoints] = useState('500');
+  const [newRewardDesc, setNewRewardDesc] = useState('');
+  const [newRewardDiscountType, setNewRewardDiscountType] = useState<'amount' | 'percent' | 'free_shipping' | 'free_product'>('amount');
+  const [newRewardDiscountValue, setNewRewardDiscountValue] = useState('5');
+  const [newRewardCouponCode, setNewRewardCouponCode] = useState('VYRO5OFF');
+  const [newRewardMinOrder, setNewRewardMinOrder] = useState('20');
+  const [newRewardTier, setNewRewardTier] = useState<'All' | 'Silver Athlete' | 'Pro Kinetic'>('All');
+
+  // User Points Adjustment State
+  const [adjustingUserId, setAdjustingUserId] = useState<string | null>(null);
+  const [manualPointsAmount, setManualPointsAmount] = useState<number>(100);
+  const [pointAdjustmentReason, setPointAdjustmentReason] = useState<string>('Ajuste Administrativo');
   const [newGbIcon, setNewGbIcon] = useState<'truck' | 'shield' | 'refresh' | 'check' | 'zap' | 'sparkles'>('truck');
 
   const showNotification = (msg: string) => {
@@ -591,6 +651,19 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
           >
             <Sliders className="w-4 h-4 text-cyan-400" />
             <span>Opções do Detalhe & Loja</span>
+          </button>
+
+          {/* NEW TAB: VYRO CLUB & POINTS CONFIG */}
+          <button
+            onClick={() => setActiveTab('loyalty')}
+            className={`flex items-center gap-2 py-2.5 px-5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+              activeTab === 'loyalty'
+                ? 'bg-black text-white shadow-md'
+                : 'text-neutral-600 hover:text-black hover:bg-neutral-100'
+            }`}
+          >
+            <Gift className="w-4 h-4 text-cyan-400" />
+            <span>Pontos, Metas & Ofertas</span>
           </button>
 
           <button
@@ -1969,6 +2042,912 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB: LOYALTY, POINTS, GOALS & OFFERS SYSTEM MANAGEMENT */}
+          {activeTab === 'loyalty' && (
+            <div className="space-y-8 max-w-5xl">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-neutral-100 pb-6">
+                <div>
+                  <div className="flex items-center gap-2 text-cyan-600 font-bold text-xs uppercase tracking-wider mb-1">
+                    <Gift className="w-4 h-4" />
+                    <span>Gestão do Programa de Fidelidade & Gamificação</span>
+                  </div>
+                  <h2 className="font-serif text-3xl sm:text-4xl text-black">
+                    Gestão de Pontos, Metas & Ofertas
+                  </h2>
+                  <p className="text-xs text-[#6F6F6F] mt-1 font-sans">
+                    Cria desafios e metas para os clientes acumularem pontos, configura prémios e cupões de desconto e gere o saldo dos atletas.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-900 text-xs font-semibold">
+                    <Users className="w-3.5 h-3.5 text-cyan-600" />
+                    <span>{users.length} Atletas Registados</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Sub-Navigation Pills */}
+              <div className="flex flex-wrap items-center gap-2 p-1.5 bg-neutral-100 rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() => setLoyaltySubTab('goals')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                    loyaltySubTab === 'goals'
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-neutral-600 hover:text-black hover:bg-neutral-200/60'
+                  }`}
+                >
+                  <Target className="w-4 h-4 text-cyan-600" />
+                  <span>Metas & Desafios ({(storeSettings.loyaltySettings?.goals || []).length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setLoyaltySubTab('offers')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                    loyaltySubTab === 'offers'
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-neutral-600 hover:text-black hover:bg-neutral-200/60'
+                  }`}
+                >
+                  <Award className="w-4 h-4 text-amber-500" />
+                  <span>Ofertas & Cupões ({(storeSettings.loyaltySettings?.rewards || []).length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setLoyaltySubTab('members')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                    loyaltySubTab === 'members'
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-neutral-600 hover:text-black hover:bg-neutral-200/60'
+                  }`}
+                >
+                  <Users className="w-4 h-4 text-blue-600" />
+                  <span>Saldo de Membros ({users.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setLoyaltySubTab('rules')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                    loyaltySubTab === 'rules'
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-neutral-600 hover:text-black hover:bg-neutral-200/60'
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4 text-purple-600" />
+                  <span>Regras & Níveis</span>
+                </button>
+              </div>
+
+              {/* SUBTAB 1: GOALS / METAS */}
+              {loyaltySubTab === 'goals' && (
+                <div className="space-y-6">
+                  {/* Summary Bar */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-white p-4 rounded-2xl border border-neutral-200 flex items-center gap-3 shadow-2xs">
+                      <div className="w-10 h-10 rounded-xl bg-cyan-50 flex items-center justify-center text-cyan-600">
+                        <Target className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-[11px] text-neutral-500 block">Total de Metas</span>
+                        <span className="text-xl font-serif font-bold text-black">
+                          {(storeSettings.loyaltySettings?.goals || []).length}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-neutral-200 flex items-center gap-3 shadow-2xs">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                        <CheckCircle className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-[11px] text-neutral-500 block">Metas Ativas</span>
+                        <span className="text-xl font-serif font-bold text-emerald-700">
+                          {(storeSettings.loyaltySettings?.goals || []).filter((g) => g.enabled).length}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-neutral-200 flex items-center gap-3 shadow-2xs">
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-[11px] text-neutral-500 block">Total Pontos Acumuláveis</span>
+                        <span className="text-xl font-serif font-bold text-amber-700">
+                          +{(storeSettings.loyaltySettings?.goals || []).reduce((acc, g) => acc + (g.enabled ? g.pointsReward : 0), 0)} pts
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Add New Goal Form */}
+                  <div className="bg-neutral-50 p-6 rounded-2xl border border-neutral-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Plus className="w-4 h-4 text-cyan-600" />
+                      <h3 className="font-serif text-lg text-black font-semibold">
+                        Criar Nova Meta / Desafio de Pontos
+                      </h3>
+                    </div>
+                    <p className="text-xs text-[#6F6F6F] mb-5">
+                      Define novas ações ou marcos que os atletas podem alcançar para ganhar pontos e subir de estatuto.
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="sm:col-span-2">
+                        <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">Título da Meta</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Treino de Longa Distância (>60€)"
+                          value={newGoalTitle}
+                          onChange={(e) => setNewGoalTitle(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border rounded-xl bg-white border-neutral-300 focus:outline-none focus:border-black"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">Pontos de Recompensa</label>
+                        <input
+                          type="number"
+                          min="10"
+                          step="10"
+                          placeholder="150"
+                          value={newGoalPoints}
+                          onChange={(e) => setNewGoalPoints(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border rounded-xl bg-white border-neutral-300 focus:outline-none focus:border-black font-semibold text-cyan-700"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">Tipo de Ação / Meta</label>
+                        <select
+                          value={newGoalType}
+                          onChange={(e) => setNewGoalType(e.target.value as LoyaltyGoal['type'])}
+                          className="w-full px-3 py-2 text-xs border rounded-xl bg-white border-neutral-300 focus:outline-none focus:border-black cursor-pointer"
+                        >
+                          <option value="first_order">1ª Encomenda Concluída</option>
+                          <option value="min_spend">Gasto Mínimo numa Compra (€)</option>
+                          <option value="order_count">Número Total de Encomendas</option>
+                          <option value="complete_profile">Perfil & Morada Preenchidos</option>
+                          <option value="favorites_count">Adicionar aos Favoritos</option>
+                          <option value="newsletter">Subscrição Newsletter</option>
+                          <option value="custom">Desafio / Meta Especial</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">Valor Alvo (ex: 50€ ou 3)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          placeholder="1"
+                          value={newGoalTargetValue}
+                          onChange={(e) => setNewGoalTargetValue(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border rounded-xl bg-white border-neutral-300 focus:outline-none focus:border-black"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">Ícone</label>
+                        <select
+                          value={newGoalIcon}
+                          onChange={(e) => setNewGoalIcon(e.target.value as NonNullable<LoyaltyGoal['icon']>)}
+                          className="w-full px-3 py-2 text-xs border rounded-xl bg-white border-neutral-300 focus:outline-none focus:border-black cursor-pointer"
+                        >
+                          <option value="shopping-bag">Saco de Compras (shopping-bag)</option>
+                          <option value="zap">Raio / Energia (zap)</option>
+                          <option value="heart">Coração / Favoritos (heart)</option>
+                          <option value="user-check">Atleta / Perfil (user-check)</option>
+                          <option value="award">Medalha / Troféu (award)</option>
+                          <option value="sparkles">Estrelas / Bónus (sparkles)</option>
+                          <option value="mail">Email / Comunidade (mail)</option>
+                        </select>
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">Descrição Explicativa para o Atleta</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Realiza a tua 1ª compra de meias de performance na loja online."
+                          value={newGoalDesc}
+                          onChange={(e) => setNewGoalDesc(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border rounded-xl bg-white border-neutral-300 focus:outline-none focus:border-black"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!newGoalTitle.trim()) return;
+                          addLoyaltyGoal({
+                            title: newGoalTitle.trim(),
+                            description: newGoalDesc.trim() || 'Completa esta meta para receberes pontos adicionais.',
+                            pointsReward: parseInt(newGoalPoints, 10) || 100,
+                            type: newGoalType,
+                            targetValue: parseFloat(newGoalTargetValue) || 1,
+                            icon: newGoalIcon,
+                            enabled: true,
+                          });
+                          setNewGoalTitle('');
+                          setNewGoalDesc('');
+                          setNewGoalPoints('100');
+                          setNewGoalTargetValue('1');
+                          showNotification('Nova meta criada com sucesso!');
+                        }}
+                        className="px-5 py-2.5 bg-black text-white text-xs font-bold rounded-xl hover:bg-neutral-800 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      >
+                        <Plus className="w-4 h-4 text-cyan-400" />
+                        <span>Criar Meta de Pontos</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* List of Existing Goals */}
+                  <div className="space-y-3">
+                    <h4 className="font-serif text-base text-black font-semibold">
+                      Metas Configuradas ({(storeSettings.loyaltySettings?.goals || []).length})
+                    </h4>
+
+                    {(storeSettings.loyaltySettings?.goals || []).length === 0 ? (
+                      <div className="bg-white p-8 rounded-2xl border border-neutral-200 text-center text-xs text-neutral-400">
+                        Nenhuma meta criada ainda. Usa o formulário acima para adicionar uma meta.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {(storeSettings.loyaltySettings?.goals || []).map((goal) => (
+                          <div
+                            key={goal.id}
+                            className={`p-4 rounded-2xl border transition-all flex items-start justify-between gap-3 ${
+                              goal.enabled
+                                ? 'bg-white border-neutral-200 shadow-2xs'
+                                : 'bg-neutral-50/70 border-neutral-200/60 opacity-60'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-cyan-50 border border-cyan-100 flex items-center justify-center text-cyan-600 shrink-0 mt-0.5">
+                                {goal.icon === 'zap' && <Zap className="w-5 h-5" />}
+                                {goal.icon === 'heart' && <Heart className="w-5 h-5" />}
+                                {goal.icon === 'shopping-bag' && <ShoppingBag className="w-5 h-5" />}
+                                {goal.icon === 'user-check' && <UserCheck className="w-5 h-5" />}
+                                {goal.icon === 'award' && <Award className="w-5 h-5" />}
+                                {goal.icon === 'sparkles' && <Sparkles className="w-5 h-5" />}
+                                {goal.icon === 'mail' && <Mail className="w-5 h-5" />}
+                                {!goal.icon && <Target className="w-5 h-5" />}
+                              </div>
+
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h5 className="font-semibold text-xs text-black">{goal.title}</h5>
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900">
+                                    +{goal.pointsReward} Pts
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-neutral-500 mt-1">{goal.description}</p>
+                                <span className="inline-block mt-2 text-[10px] font-mono text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded-md">
+                                  Gatilho: {goal.type} {goal.targetValue ? `(${goal.targetValue})` : ''}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  updateLoyaltyGoal(goal.id, { enabled: !goal.enabled });
+                                  showNotification(`Meta "${goal.title}" ${!goal.enabled ? 'ativada' : 'pausada'}!`);
+                                }}
+                                className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-colors cursor-pointer ${
+                                  goal.enabled
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                    : 'bg-neutral-100 text-neutral-500 border-neutral-300'
+                                }`}
+                              >
+                                {goal.enabled ? 'Ativa' : 'Pausada'}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  deleteLoyaltyGoal(goal.id);
+                                  showNotification(`Meta "${goal.title}" removida.`);
+                                }}
+                                className="p-1.5 text-neutral-400 hover:text-rose-600 transition-colors cursor-pointer"
+                                title="Eliminar meta"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB 2: OFFERS, VOUCHERS & REWARDS */}
+              {loyaltySubTab === 'offers' && (
+                <div className="space-y-6">
+                  {/* Summary Bar */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-white p-4 rounded-2xl border border-neutral-200 flex items-center gap-3 shadow-2xs">
+                      <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
+                        <Award className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-[11px] text-neutral-500 block">Total de Ofertas</span>
+                        <span className="text-xl font-serif font-bold text-black">
+                          {(storeSettings.loyaltySettings?.rewards || []).length}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-neutral-200 flex items-center gap-3 shadow-2xs">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                        <Ticket className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-[11px] text-neutral-500 block">Ofertas & Cupões Ativos</span>
+                        <span className="text-xl font-serif font-bold text-emerald-700">
+                          {(storeSettings.loyaltySettings?.rewards || []).filter((r) => r.enabled).length}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-neutral-200 flex items-center gap-3 shadow-2xs">
+                      <div className="w-10 h-10 rounded-xl bg-cyan-50 flex items-center justify-center text-cyan-600">
+                        <Coins className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-[11px] text-neutral-500 block">Custo Médio de Resgate</span>
+                        <span className="text-xl font-serif font-bold text-cyan-700">
+                          {Math.round(
+                            (storeSettings.loyaltySettings?.rewards || []).reduce((acc, r) => acc + r.pointsCost, 0) /
+                              Math.max(1, (storeSettings.loyaltySettings?.rewards || []).length)
+                          )}{' '}
+                          pts
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Add New Reward/Offer Form */}
+                  <div className="bg-neutral-50 p-6 rounded-2xl border border-neutral-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Plus className="w-4 h-4 text-cyan-600" />
+                      <h3 className="font-serif text-lg text-black font-semibold">
+                        Criar Nova Oferta / Recompensa Resgatável
+                      </h3>
+                    </div>
+                    <p className="text-xs text-[#6F6F6F] mb-5">
+                      Configura os cupões, descontos e ofertas especiais que os membros podem resgatar usando os seus pontos.
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="sm:col-span-2">
+                        <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">Título da Oferta</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Vale 10€ de Desconto Exclusivo"
+                          value={newRewardTitle}
+                          onChange={(e) => setNewRewardTitle(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border rounded-xl bg-white border-neutral-300 focus:outline-none focus:border-black"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">Custo em Pontos</label>
+                        <input
+                          type="number"
+                          min="50"
+                          step="50"
+                          placeholder="750"
+                          value={newRewardPoints}
+                          onChange={(e) => setNewRewardPoints(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border rounded-xl bg-white border-neutral-300 focus:outline-none focus:border-black font-semibold text-cyan-700"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">Código de Cupão</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: VYRO10OFF"
+                          value={newRewardCouponCode}
+                          onChange={(e) => setNewRewardCouponCode(e.target.value.toUpperCase())}
+                          className="w-full px-3 py-2 text-xs border rounded-xl bg-white border-neutral-300 focus:outline-none focus:border-black font-mono font-bold uppercase text-purple-700"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">Tipo de Benefício</label>
+                        <select
+                          value={newRewardDiscountType}
+                          onChange={(e) => setNewRewardDiscountType(e.target.value as any)}
+                          className="w-full px-3 py-2 text-xs border rounded-xl bg-white border-neutral-300 focus:outline-none focus:border-black cursor-pointer"
+                        >
+                          <option value="amount">Desconto Fixo em Euros (€)</option>
+                          <option value="percent">Desconto em Percentagem (%)</option>
+                          <option value="free_shipping">Portes de Envio Grátis</option>
+                          <option value="free_product">Par de Meias Grátis na Compra</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">Valor do Desconto (€ ou %)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="10"
+                          value={newRewardDiscountValue}
+                          onChange={(e) => setNewRewardDiscountValue(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border rounded-xl bg-white border-neutral-300 focus:outline-none focus:border-black"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">Encomenda Mínima (€)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="5"
+                          placeholder="0"
+                          value={newRewardMinOrder}
+                          onChange={(e) => setNewRewardMinOrder(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border rounded-xl bg-white border-neutral-300 focus:outline-none focus:border-black"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">Nível Exigido</label>
+                        <select
+                          value={newRewardTier}
+                          onChange={(e) => setNewRewardTier(e.target.value as any)}
+                          className="w-full px-3 py-2 text-xs border rounded-xl bg-white border-neutral-300 focus:outline-none focus:border-black cursor-pointer"
+                        >
+                          <option value="All">Todos os Membros</option>
+                          <option value="Silver Athlete">Silver Athlete ou superior</option>
+                          <option value="Pro Kinetic">Apenas Pro Kinetic</option>
+                        </select>
+                      </div>
+
+                      <div className="sm:col-span-4">
+                        <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">Descrição do Benefício</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Desconto de 10€ aplicável no carrinho em compras superiores a 35€."
+                          value={newRewardDesc}
+                          onChange={(e) => setNewRewardDesc(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border rounded-xl bg-white border-neutral-300 focus:outline-none focus:border-black"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!newRewardTitle.trim()) return;
+                          addLoyaltyReward({
+                            title: newRewardTitle.trim(),
+                            pointsCost: parseInt(newRewardPoints, 10) || 500,
+                            description: newRewardDesc.trim() || 'Benefício exclusivo para membros VYRO.',
+                            enabled: true,
+                            discountType: newRewardDiscountType,
+                            discountValue: parseFloat(newRewardDiscountValue) || 5,
+                            couponCode: newRewardCouponCode.trim() || `VYRO${Math.floor(Math.random() * 900 + 100)}`,
+                            minOrderValue: parseFloat(newRewardMinOrder) || 0,
+                            tierRequired: newRewardTier,
+                          });
+                          setNewRewardTitle('');
+                          setNewRewardPoints('500');
+                          setNewRewardDesc('');
+                          setNewRewardCouponCode('VYRO5OFF');
+                          showNotification('Nova oferta adicionada com sucesso!');
+                        }}
+                        className="px-5 py-2.5 bg-black text-white text-xs font-bold rounded-xl hover:bg-neutral-800 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      >
+                        <Plus className="w-4 h-4 text-cyan-400" />
+                        <span>Adicionar Oferta ao Clube</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* List of Existing Offers */}
+                  <div className="space-y-3">
+                    <h4 className="font-serif text-base text-black font-semibold">
+                      Ofertas & Prémios Ativos ({(storeSettings.loyaltySettings?.rewards || []).length})
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {(storeSettings.loyaltySettings?.rewards || []).map((rew) => (
+                        <div
+                          key={rew.id}
+                          className={`p-5 rounded-2xl border transition-all flex flex-col justify-between ${
+                            rew.enabled
+                              ? 'bg-white border-neutral-200 shadow-2xs'
+                              : 'bg-neutral-50/70 border-neutral-200/60 opacity-60'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <span className="px-3 py-1 rounded-full text-xs font-bold bg-cyan-100 text-cyan-900 border border-cyan-200">
+                                {rew.pointsCost} Pontos
+                              </span>
+
+                              <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-700">
+                                {rew.tierRequired === 'Pro Kinetic'
+                                  ? 'Exclusivo Pro'
+                                  : rew.tierRequired === 'Silver Athlete'
+                                  ? 'Silver+'
+                                  : 'Todos os Membros'}
+                              </span>
+                            </div>
+
+                            <h5 className="font-serif text-base font-semibold text-black mt-1">
+                              {rew.title}
+                            </h5>
+                            <p className="text-xs text-neutral-500 mt-1">{rew.description}</p>
+
+                            <div className="mt-4 p-3 bg-neutral-50 rounded-xl border border-neutral-200/80 flex items-center justify-between text-xs">
+                              <div>
+                                <span className="text-[10px] text-neutral-400 uppercase tracking-wider block font-bold">
+                                  Cupão de Desconto
+                                </span>
+                                <span className="font-mono font-bold text-sm text-purple-700">
+                                  {rew.couponCode || 'VYRO-PROMO'}
+                                </span>
+                              </div>
+
+                              <div className="text-right">
+                                <span className="text-[10px] text-neutral-400 uppercase tracking-wider block font-bold">
+                                  Benefício
+                                </span>
+                                <span className="font-semibold text-neutral-800">
+                                  {rew.discountType === 'percent' && `${rew.discountValue}% OFF`}
+                                  {rew.discountType === 'amount' && `-${rew.discountValue}€ Desconto`}
+                                  {rew.discountType === 'free_shipping' && 'Portes Grátis'}
+                                  {rew.discountType === 'free_product' && 'Par de Meias Grátis'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 pt-3 border-t border-neutral-100 flex items-center justify-between">
+                            <span className="text-[11px] text-neutral-400">
+                              {rew.minOrderValue ? `Mínimo: ${rew.minOrderValue}€` : 'Sem valor mínimo'}
+                            </span>
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  updateLoyaltyReward(rew.id, { enabled: !rew.enabled });
+                                  showNotification(`Oferta "${rew.title}" ${!rew.enabled ? 'ativada' : 'pausada'}!`);
+                                }}
+                                className={`px-3 py-1 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
+                                  rew.enabled
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                    : 'bg-neutral-100 text-neutral-500 border-neutral-300'
+                                }`}
+                              >
+                                {rew.enabled ? 'Ativa' : 'Pausada'}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  deleteLoyaltyReward(rew.id);
+                                  showNotification(`Oferta "${rew.title}" removida.`);
+                                }}
+                                className="p-1.5 text-neutral-400 hover:text-rose-600 transition-colors cursor-pointer"
+                                title="Eliminar oferta"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB 3: MEMBERS & POINTS MANAGEMENT */}
+              {loyaltySubTab === 'members' && (
+                <div className="space-y-6">
+                  {/* Search and Filters */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-neutral-50 p-4 rounded-2xl border border-neutral-200">
+                    <div className="relative flex-1 max-w-md">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                      <input
+                        type="text"
+                        placeholder="Pesquisar atleta por nome ou email..."
+                        value={memberSearchQuery}
+                        onChange={(e) => setMemberSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 text-xs border rounded-xl bg-white border-neutral-300 focus:outline-none focus:border-black"
+                      />
+                    </div>
+
+                    <span className="text-xs text-neutral-500">
+                      A mostrar{' '}
+                      <strong>
+                        {
+                          users.filter(
+                            (u) =>
+                              u.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
+                              u.email.toLowerCase().includes(memberSearchQuery.toLowerCase())
+                          ).length
+                        }
+                      </strong>{' '}
+                      de {users.length} membros
+                    </span>
+                  </div>
+
+                  {users.length === 0 ? (
+                    <div className="bg-white p-8 rounded-2xl border border-neutral-200 text-center text-xs text-neutral-400">
+                      Nenhum cliente registado de momento.
+                    </div>
+                  ) : (
+                    <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden shadow-xs">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] uppercase font-bold text-neutral-600 tracking-wider">
+                            <tr>
+                              <th className="py-3 px-4">Atleta</th>
+                              <th className="py-3 px-4">Email</th>
+                              <th className="py-3 px-4">Estatuto</th>
+                              <th className="py-3 px-4">Saldo Atual</th>
+                              <th className="py-3 px-4 text-right">Ajuste Rápido de Pontos</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-neutral-100">
+                            {users
+                              .filter(
+                                (u) =>
+                                  u.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
+                                  u.email.toLowerCase().includes(memberSearchQuery.toLowerCase())
+                              )
+                              .map((user) => (
+                                <tr key={user.id} className="hover:bg-neutral-50/60 transition-colors">
+                                  <td className="py-3.5 px-4 font-semibold text-black">
+                                    <div className="flex items-center gap-2.5">
+                                      <div className="w-7 h-7 rounded-full bg-neutral-900 text-cyan-400 font-bold text-[11px] flex items-center justify-center">
+                                        {user.name.charAt(0).toUpperCase()}
+                                      </div>
+                                      <span>{user.name}</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-3.5 px-4 text-neutral-500 font-mono text-[11px]">
+                                    {user.email}
+                                  </td>
+                                  <td className="py-3.5 px-4">
+                                    <span
+                                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                        user.tier === 'Pro Kinetic'
+                                          ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                                          : user.tier === 'Silver Athlete'
+                                          ? 'bg-cyan-100 text-cyan-800 border border-cyan-200'
+                                          : 'bg-neutral-100 text-neutral-700'
+                                      }`}
+                                    >
+                                      {user.tier}
+                                    </span>
+                                  </td>
+                                  <td className="py-3.5 px-4">
+                                    <span className="font-serif font-bold text-sm text-cyan-700">
+                                      {user.points || 0}
+                                    </span>
+                                    <span className="text-[10px] text-neutral-400 ml-1">pts</span>
+                                  </td>
+                                  <td className="py-3.5 px-4 text-right">
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          updateUserPoints(user.id, (user.points || 0) + 50);
+                                          showNotification(`+50 pontos atribuídos a ${user.name}!`);
+                                        }}
+                                        className="px-2 py-1 text-[10px] font-bold bg-neutral-100 hover:bg-neutral-200 rounded-lg text-neutral-800 transition-colors cursor-pointer"
+                                        title="Adicionar 50 pontos"
+                                      >
+                                        +50
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          updateUserPoints(user.id, (user.points || 0) + 100);
+                                          showNotification(`+100 pontos atribuídos a ${user.name}!`);
+                                        }}
+                                        className="px-2 py-1 text-[10px] font-bold bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-200 rounded-lg transition-colors cursor-pointer"
+                                        title="Adicionar 100 pontos"
+                                      >
+                                        +100
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          updateUserPoints(user.id, (user.points || 0) + 500);
+                                          showNotification(`+500 pontos atribuídos a ${user.name}!`);
+                                        }}
+                                        className="px-2 py-1 text-[10px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg transition-colors cursor-pointer"
+                                        title="Adicionar 500 pontos"
+                                      >
+                                        +500
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          updateUserPoints(user.id, Math.max(0, (user.points || 0) - 50));
+                                          showNotification(`-50 pontos ajustados a ${user.name}.`);
+                                        }}
+                                        className="px-2 py-1 text-[10px] font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition-colors cursor-pointer"
+                                        title="Subtrair 50 pontos"
+                                      >
+                                        -50
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setAdjustingUserId(adjustingUserId === user.id ? null : user.id);
+                                          setManualPointsAmount(user.points || 0);
+                                        }}
+                                        className="px-2.5 py-1 text-[10px] font-semibold bg-black text-white hover:bg-neutral-800 rounded-lg transition-colors cursor-pointer ml-1"
+                                      >
+                                        {adjustingUserId === user.id ? 'Fechar' : 'Editar Saldo'}
+                                      </button>
+                                    </div>
+
+                                    {adjustingUserId === user.id && (
+                                      <div className="mt-2.5 p-3 bg-neutral-100 rounded-xl flex flex-col sm:flex-row items-center justify-end gap-2 animate-fade-rise text-left">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-[10px] text-neutral-600 font-bold">Novo saldo:</span>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            value={manualPointsAmount}
+                                            onChange={(e) => setManualPointsAmount(parseInt(e.target.value, 10) || 0)}
+                                            className="w-20 px-2 py-1 text-xs font-bold border rounded-lg bg-white border-neutral-300"
+                                          />
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          <input
+                                            type="text"
+                                            placeholder="Motivo (ex: Bónus Campanha)"
+                                            value={pointAdjustmentReason}
+                                            onChange={(e) => setPointAdjustmentReason(e.target.value)}
+                                            className="w-36 px-2 py-1 text-[11px] border rounded-lg bg-white border-neutral-300"
+                                          />
+
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              updateUserPoints(user.id, manualPointsAmount);
+                                              setAdjustingUserId(null);
+                                              showNotification(`Saldo de ${user.name} atualizado para ${manualPointsAmount} pts (${pointAdjustmentReason})!`);
+                                            }}
+                                            className="px-3 py-1 bg-black text-white text-[10px] font-bold rounded-lg hover:bg-neutral-800 cursor-pointer"
+                                          >
+                                            Guardar
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SUBTAB 4: RULES & CLUB TIERS CONFIGURATION */}
+              {loyaltySubTab === 'rules' && (
+                <div className="p-6 rounded-2xl bg-neutral-50 border border-neutral-200">
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <h3 className="font-serif text-xl text-black font-semibold">
+                      Regras de Conversão e Níveis de Atleta
+                    </h3>
+                  </div>
+                  <p className="text-xs text-[#6F6F6F] mb-6">
+                    Estes parâmetros definem quantos pontos são creditados por cada euro de compra e quais os patamares para ascender no Clube VYRO.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white p-4 rounded-xl border border-neutral-200">
+                      <label className="text-[11px] font-bold uppercase text-neutral-700 tracking-wider block mb-1">
+                        Pontos por cada 1€ Gasto
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={pointsPerEuroInput}
+                        onChange={(e) => setPointsPerEuroInput(e.target.value)}
+                        className="w-full px-3 py-2 text-sm font-semibold border rounded-lg border-neutral-300 focus:outline-none focus:border-black"
+                      />
+                      <span className="text-[10px] text-neutral-400 mt-1 block">Ex: 10 pts = 1€ gasto</span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-xl border border-neutral-200">
+                      <label className="text-[11px] font-bold uppercase text-neutral-700 tracking-wider block mb-1">
+                        Bónus de Boas-Vindas
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={welcomeBonusInput}
+                        onChange={(e) => setWelcomeBonusInput(e.target.value)}
+                        className="w-full px-3 py-2 text-sm font-semibold border rounded-lg border-neutral-300 focus:outline-none focus:border-black"
+                      />
+                      <span className="text-[10px] text-neutral-400 mt-1 block">Creditado ao criar conta</span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-xl border border-neutral-200">
+                      <label className="text-[11px] font-bold uppercase text-neutral-700 tracking-wider block mb-1">
+                        Limiar Silver Athlete
+                      </label>
+                      <input
+                        type="number"
+                        min="100"
+                        value={silverTierInput}
+                        onChange={(e) => setSilverTierInput(e.target.value)}
+                        className="w-full px-3 py-2 text-sm font-semibold border rounded-lg border-neutral-300 focus:outline-none focus:border-black"
+                      />
+                      <span className="text-[10px] text-neutral-400 mt-1 block">Pontos para atingir Silver</span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-xl border border-neutral-200">
+                      <label className="text-[11px] font-bold uppercase text-neutral-700 tracking-wider block mb-1">
+                        Limiar Pro Kinetic
+                      </label>
+                      <input
+                        type="number"
+                        min="500"
+                        value={proTierInput}
+                        onChange={(e) => setProTierInput(e.target.value)}
+                        className="w-full px-3 py-2 text-sm font-semibold border rounded-lg border-neutral-300 focus:outline-none focus:border-black"
+                      />
+                      <span className="text-[10px] text-neutral-400 mt-1 block">Pontos para estatuto Pro</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateLoyaltySettings({
+                          pointsPerEuro: parseInt(pointsPerEuroInput, 10) || 10,
+                          welcomeBonus: parseInt(welcomeBonusInput, 10) || 100,
+                          silverTierThreshold: parseInt(silverTierInput, 10) || 400,
+                          proTierThreshold: parseInt(proTierInput, 10) || 1000,
+                        });
+                        showNotification('Regras de pontos e níveis de atleta gravadas com sucesso!');
+                      }}
+                      className="px-6 py-2.5 rounded-full bg-black text-white font-bold text-xs hover:bg-neutral-800 transition-all flex items-center gap-2 cursor-pointer shadow-md"
+                    >
+                      <Check className="w-4 h-4 text-cyan-400" />
+                      <span>Guardar Regras de Pontos</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

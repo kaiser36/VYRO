@@ -125,20 +125,6 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
           </div>
 
           <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-center">
-            {onOpenAdmin && (
-              <button
-                onClick={onOpenAdmin}
-                title="Área de Gestão do Site"
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all cursor-pointer ${
-                  isAdmin
-                    ? 'bg-cyan-50 border-cyan-300 text-cyan-800 shadow-xs'
-                    : 'border-neutral-200 text-neutral-600 hover:text-black hover:border-black bg-white'
-                }`}
-              >
-                <ShieldCheck className={`w-3.5 h-3.5 ${isAdmin ? 'text-cyan-600' : 'text-neutral-400'}`} />
-                <span>{isAdmin ? 'Admin (Ativo)' : 'Gestão'}</span>
-              </button>
-            )}
             <span className="text-[11px] text-neutral-400">Pagamentos Seguros: MB WAY, Multibanco, Cartão</span>
             <button
               onClick={scrollToTop}

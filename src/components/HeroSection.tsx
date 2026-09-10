@@ -67,16 +67,20 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreClick }) => {
 
         {/* Headline: LIBERDADE EM MOVIMENTO • MOVE • LIVE • REPEAT */}
         <h1
-          className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl max-w-5xl font-normal font-serif text-[#000000] tracking-tight animate-fade-rise"
+          className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl max-w-5xl font-normal font-serif text-[#000000] tracking-tight animate-fade-rise text-center"
           style={{
-            lineHeight: 1.08,
+            lineHeight: 1.15,
             letterSpacing: '-1.5px',
           }}
         >
-          Liberdade em Movimento{' '}
-          <span className="italic text-[#6F6F6F]">Move</span> <span className="text-cyan-500 font-sans mx-1 sm:mx-1.5 inline-block">•</span>{' '}
-          <span className="italic text-[#6F6F6F]">Live</span> <span className="text-cyan-500 font-sans mx-1 sm:mx-1.5 inline-block">•</span>{' '}
-          <span className="italic text-[#6F6F6F]">Repeat</span>
+          <span className="block">Liberdade em Movimento</span>
+          <span className="block mt-2 sm:mt-3 text-2xl sm:text-4xl md:text-5xl lg:text-6xl">
+            <span className="italic text-[#6F6F6F]">Move</span>{' '}
+            <span className="text-cyan-500 font-sans mx-1 sm:mx-2 inline-block">•</span>{' '}
+            <span className="italic text-[#6F6F6F]">Live</span>{' '}
+            <span className="text-cyan-500 font-sans mx-1 sm:mx-2 inline-block">•</span>{' '}
+            <span className="italic text-[#6F6F6F]">Repeat</span>
+          </span>
         </h1>
 
         {/* Short, punchy single-line subtitle */}

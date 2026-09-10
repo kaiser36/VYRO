@@ -73,7 +73,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreClick }) => {
             letterSpacing: '-1.5px',
           }}
         >
-          Liberdade em Movimento <span className="text-cyan-500 font-sans mx-1 sm:mx-1.5 inline-block">•</span>{' '}
+          Liberdade em Movimento{' '}
           <span className="italic text-[#6F6F6F]">Move</span> <span className="text-cyan-500 font-sans mx-1 sm:mx-1.5 inline-block">•</span>{' '}
           <span className="italic text-[#6F6F6F]">Live</span> <span className="text-cyan-500 font-sans mx-1 sm:mx-1.5 inline-block">•</span>{' '}
           <span className="italic text-[#6F6F6F]">Repeat</span>

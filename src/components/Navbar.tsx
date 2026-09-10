@@ -99,8 +99,25 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         </nav>
 
-        {/* Actions (Favorites, User, Admin, Cart, CTA) */}
-        <div className="flex items-center space-x-2 sm:space-x-3">
+        {/* Actions (User, Favorites, Cart, CTA) */}
+        <div className="flex items-center space-x-1 sm:space-x-2">
+          {/* User Account / Login Icon Button */}
+          <button
+            onClick={handleUserClick}
+            aria-label={isAuthenticated ? 'Aceder ao meu perfil' : 'Entrar / Criar Conta'}
+            title={isAuthenticated ? `Conta: ${currentUser?.name}` : 'Entrar / Criar Conta'}
+            className="relative p-2 rounded-full hover:bg-neutral-100 transition-colors text-black cursor-pointer"
+          >
+            <UserIcon
+              className={`w-5 h-5 transition-colors ${
+                isAuthenticated ? 'text-cyan-600' : 'text-neutral-700 hover:text-black'
+              }`}
+            />
+            {isAuthenticated && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-cyan-500 rounded-full ring-2 ring-white" />
+            )}
+          </button>
+
           {/* Favorites Button with badge */}
           <button
             onClick={onOpenFavorites}
@@ -118,22 +135,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {favoritesCount}
               </span>
             )}
-          </button>
-
-          {/* User Account / Login Button */}
-          <button
-            onClick={handleUserClick}
-            title={isAuthenticated ? 'Aceder ao meu perfil' : 'Entrar / Criar Conta'}
-            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
-              isAuthenticated
-                ? 'bg-neutral-900 text-white border-black hover:bg-neutral-800 shadow-xs'
-                : 'border-neutral-200/90 text-neutral-700 hover:text-black hover:border-black/40 bg-neutral-50/50'
-            }`}
-          >
-            <UserIcon className={`w-3.5 h-3.5 ${isAuthenticated ? 'text-cyan-400' : 'text-neutral-500'}`} />
-            <span className="hidden sm:inline max-w-[90px] truncate">
-              {isAuthenticated ? currentUser?.name.split(' ')[0] : 'Entrar'}
-            </span>
           </button>
 
           {/* Cart Icon with badge */}

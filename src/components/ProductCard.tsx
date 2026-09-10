@@ -1,24 +1,38 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Eye, Star, Check } from 'lucide-react';
+import { ShoppingBag, Eye, Star, Check, Heart } from 'lucide-react';
 import { Product, ProductColor } from '../types/store';
 import { useCart } from '../context/CartContext';
+import { useUser } from '../context/UserContext';
 
 interface ProductCardProps {
   product: Product;
   onQuickView: (product: Product) => void;
+  onRequireAuth?: () => void;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView, onRequireAuth }) => {
   const { addItem } = useCart();
+  const { isFavorite, toggleFavorite, isAuthenticated } = useUser();
   const [selectedColor, setSelectedColor] = useState<ProductColor>(product.colors[0] || { name: 'Padrão', hex: '#00f2fe' });
   const [selectedSize, setSelectedSize] = useState<string>(product.sizes[0] || '39-42');
   const [addedAnimation, setAddedAnimation] = useState(false);
+
+  const isFav = isFavorite(product.id);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
     addItem(product, selectedSize, selectedColor, 1);
     setAddedAnimation(true);
     setTimeout(() => setAddedAnimation(false), 1200);
+  };
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isAuthenticated && onRequireAuth) {
+      onRequireAuth();
+      return;
+    }
+    toggleFavorite(product.id);
   };
 
   return (
@@ -48,6 +62,25 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }
             </span>
           )}
         </div>
+
+        {/* Favorite Heart Button */}
+        <button
+          type="button"
+          onClick={handleFavoriteClick}
+          aria-label={isFav ? "Remover dos favoritos" : "Guardar nos favoritos"}
+          title={isFav ? "Remover dos favoritos" : "Guardar nos favoritos"}
+          className={`absolute top-3 right-3 z-10 p-2 rounded-full transition-all duration-300 ${
+            isFav
+              ? 'bg-white text-rose-500 shadow-md scale-105'
+              : 'bg-white/80 backdrop-blur-sm text-neutral-600 hover:text-rose-500 hover:bg-white hover:scale-110 shadow-xs'
+          }`}
+        >
+          <Heart
+            className={`w-4 h-4 transition-transform active:scale-125 ${
+              isFav ? 'fill-rose-500 text-rose-500' : ''
+            }`}
+          />
+        </button>
 
         {/* Quick View Button on Hover */}
         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">

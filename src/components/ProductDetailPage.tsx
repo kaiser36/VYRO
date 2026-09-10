@@ -11,25 +11,30 @@ import {
   Share2,
   Sparkles,
   Zap,
+  Heart,
 } from 'lucide-react';
 import { Product, ProductColor } from '../types/store';
 import { useCart } from '../context/CartContext';
 import { useStore } from '../context/StoreContext';
+import { useUser } from '../context/UserContext';
 import { ProductCard } from './ProductCard';
 
 interface ProductDetailPageProps {
   product: Product;
   onBack: () => void;
   onSelectProduct: (product: Product) => void;
+  onRequireAuth?: () => void;
 }
 
 export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   product,
   onBack,
   onSelectProduct,
+  onRequireAuth,
 }) => {
   const { addItem } = useCart();
   const { products, storeSettings } = useStore();
+  const { isFavorite, toggleFavorite, isAuthenticated } = useUser();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedColor, setSelectedColor] = useState<ProductColor>(
     product.colors[0] || { name: 'Padrão', hex: '#00f2fe' }
@@ -350,6 +355,30 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   </>
                 )}
               </button>
+
+              {/* Wishlist Heart Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isAuthenticated && onRequireAuth) {
+                    onRequireAuth();
+                    return;
+                  }
+                  toggleFavorite(product.id);
+                }}
+                title={isFavorite(product.id) ? "Remover dos favoritos" : "Guardar nos favoritos"}
+                className={`p-4 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
+                  isFavorite(product.id)
+                    ? 'border-rose-300 bg-rose-50 text-rose-500 shadow-xs'
+                    : 'border-neutral-200 text-neutral-600 hover:text-rose-500 hover:border-neutral-400'
+                }`}
+              >
+                <Heart
+                  className={`w-5 h-5 transition-transform active:scale-125 ${
+                    isFavorite(product.id) ? 'fill-rose-500 text-rose-500' : ''
+                  }`}
+                />
+              </button>
             </div>
           </div>
         </div>
@@ -380,6 +409,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   key={p.id}
                   product={p}
                   onQuickView={(selected) => onSelectProduct(selected)}
+                  onRequireAuth={onRequireAuth}
                 />
               ))}
             </div>

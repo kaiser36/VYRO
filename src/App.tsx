@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StoreProvider } from './context/StoreContext';
 import { CartProvider, useCart } from './context/CartContext';
+import { UserProvider, useUser } from './context/UserContext';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { ProductCatalog } from './components/ProductCatalog';
@@ -8,17 +9,25 @@ import { TechSection } from './components/TechSection';
 import { Footer } from './components/Footer';
 import { ProductDetailPage } from './components/ProductDetailPage';
 import { AdminPortalPage } from './components/AdminPortalPage';
+import { UserProfilePage } from './components/UserProfilePage';
 import { CartDrawer } from './components/CartDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
+import { AuthModal } from './components/AuthModal';
 import { Product } from './types/store';
 
-type ViewMode = 'store' | 'product-detail' | 'admin';
+type ViewMode = 'store' | 'product-detail' | 'admin' | 'profile';
 
 const MainAppContent: React.FC = () => {
   const { setIsCartOpen } = useCart();
+  const { isAuthenticated } = useUser();
   const [currentView, setCurrentView] = useState<ViewMode>('store');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+
+  // User Auth & Profile Modal states
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
+  const [profileTab, setProfileTab] = useState<'overview' | 'orders' | 'favorites' | 'profile' | 'rewards'>('overview');
 
   // Navigate to dedicated product detail page (no modal)
   const handleOpenProductDetail = (product: Product) => {
@@ -31,6 +40,27 @@ const MainAppContent: React.FC = () => {
   const handleOpenAdmin = () => {
     setCurrentView('admin');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Navigate to user profile page
+  const handleOpenProfile = (tab: 'overview' | 'orders' | 'favorites' | 'profile' | 'rewards' = 'overview') => {
+    setProfileTab(tab);
+    setCurrentView('profile');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleOpenFavorites = () => {
+    if (isAuthenticated) {
+      handleOpenProfile('favorites');
+    } else {
+      setAuthTab('login');
+      setIsAuthOpen(true);
+    }
+  };
+
+  const handleOpenAuth = (tab: 'login' | 'register' = 'login') => {
+    setAuthTab(tab);
+    setIsAuthOpen(true);
   };
 
   const handleBackToStore = () => {
@@ -87,35 +117,52 @@ const MainAppContent: React.FC = () => {
         <AdminPortalPage onBackToStore={handleBackToStore} />
       )}
 
-      {/* VIEW 2: DEDICATED PRODUCT DETAIL PAGE (NO MODAL) */}
+      {/* VIEW 2: DEDICATED USER PROFILE & ATHLETE CLUB PAGE (NO MODAL) */}
+      {currentView === 'profile' && (
+        <UserProfilePage
+          onBackToStore={handleBackToStore}
+          onOpenProductDetail={handleOpenProductDetail}
+          initialTab={profileTab}
+        />
+      )}
+
+      {/* VIEW 3: DEDICATED PRODUCT DETAIL PAGE (NO MODAL) */}
       {currentView === 'product-detail' && selectedProduct && (
         <>
           <Navbar
             onOpenCart={() => setIsCartOpen(true)}
             onOpenAdmin={handleOpenAdmin}
             onNavigate={handleNavigate}
+            onOpenProfile={() => handleOpenProfile('overview')}
+            onOpenAuth={() => handleOpenAuth('login')}
+            onOpenFavorites={handleOpenFavorites}
           />
           <ProductDetailPage
             product={selectedProduct}
             onBack={handleBackToStore}
             onSelectProduct={(p) => setSelectedProduct(p)}
+            onRequireAuth={() => handleOpenAuth('login')}
           />
           <Footer />
         </>
       )}
 
-      {/* VIEW 3: MAIN STOREFRONT */}
+      {/* VIEW 4: MAIN STOREFRONT */}
       {currentView === 'store' && (
         <>
           <Navbar
             onOpenCart={() => setIsCartOpen(true)}
             onOpenAdmin={handleOpenAdmin}
             onNavigate={handleNavigate}
+            onOpenProfile={() => handleOpenProfile('overview')}
+            onOpenAuth={() => handleOpenAuth('login')}
+            onOpenFavorites={handleOpenFavorites}
           />
           <HeroSection onExploreClick={scrollToCatalog} />
           <ProductCatalog
             onQuickView={handleOpenProductDetail}
             onOpenAdmin={handleOpenAdmin}
+            onRequireAuth={() => handleOpenAuth('login')}
           />
           <TechSection />
           <Footer />
@@ -128,6 +175,17 @@ const MainAppContent: React.FC = () => {
       <CheckoutModal
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
+        onViewOrders={() => handleOpenProfile('orders')}
+      />
+
+      {/* Global Auth Modal (Login / Register) */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        initialTab={authTab}
+        onSuccess={() => {
+          // Keep on store or current view, session is active!
+        }}
       />
     </div>
   );
@@ -136,9 +194,11 @@ const MainAppContent: React.FC = () => {
 export function App() {
   return (
     <StoreProvider>
-      <CartProvider>
-        <MainAppContent />
-      </CartProvider>
+      <UserProvider>
+        <CartProvider>
+          <MainAppContent />
+        </CartProvider>
+      </UserProvider>
     </StoreProvider>
   );
 }

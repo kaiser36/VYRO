@@ -7,9 +7,10 @@ import { useStore } from '../context/StoreContext';
 interface ProductCatalogProps {
   onQuickView: (product: Product) => void;
   onOpenAdmin: () => void;
+  onRequireAuth?: () => void;
 }
 
-export const ProductCatalog: React.FC<ProductCatalogProps> = ({ onQuickView, onOpenAdmin }) => {
+export const ProductCatalog: React.FC<ProductCatalogProps> = ({ onQuickView, onOpenAdmin, onRequireAuth }) => {
   const { products, categories, isAdmin } = useStore();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -157,7 +158,12 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({ onQuickView, onO
       {filteredProducts.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} onQuickView={onQuickView} />
+            <ProductCard
+              key={product.id}
+              product={product}
+              onQuickView={onQuickView}
+              onRequireAuth={onRequireAuth}
+            />
           ))}
         </div>
       ) : (

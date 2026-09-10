@@ -1,0 +1,214 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { User, RegisterData } from '../types/user';
+
+interface UserContextType {
+  currentUser: User | null;
+  isAuthenticated: boolean;
+  favoritesCount: number;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (data: RegisterData) => Promise<{ success: boolean; error?: string }>;
+  logout: () => void;
+  toggleFavorite: (productId: string) => void;
+  isFavorite: (productId: string) => boolean;
+  updateProfile: (data: Partial<User>) => void;
+  addPoints: (pointsToAdd: number) => void;
+  loginAsDemo: () => void;
+}
+
+const STORAGE_KEYS = {
+  USERS: 'vyro_users_data_v1',
+  CURRENT_USER_ID: 'vyro_active_user_id_v1',
+};
+
+const INITIAL_DEMO_USERS: User[] = [
+  {
+    id: 'user-demo-1',
+    name: 'Tiago Pereira',
+    email: 'tiago@vyro.pt',
+    phone: '912 345 678',
+    nif: '254896321',
+    address: {
+      street: 'Avenida da Liberdade 120, 3º Dto',
+      city: 'Lisboa',
+      postalCode: '1250-142',
+      country: 'Portugal',
+    },
+    favoriteProductIds: ['vyro-ultralight-crew', 'vyro-trail-cushion-pro'],
+    points: 420,
+    tier: 'Silver Athlete',
+    preferredSize: '39-42',
+    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+const UserContext = createContext<UserContextType | undefined>(undefined);
+
+export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [users, setUsers] = useState<User[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.USERS);
+      return saved ? JSON.parse(saved) : INITIAL_DEMO_USERS;
+    } catch {
+      return INITIAL_DEMO_USERS;
+    }
+  });
+
+  const [activeUserId, setActiveUserId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID) || null;
+    } catch {
+      return null;
+    }
+  });
+
+  const currentUser = users.find((u) => u.id === activeUserId) || null;
+  const isAuthenticated = !!currentUser;
+  const favoritesCount = currentUser ? currentUser.favoriteProductIds.length : 0;
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  }, [users]);
+
+  useEffect(() => {
+    if (activeUserId) {
+      localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, activeUserId);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+    }
+  }, [activeUserId]);
+
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    const cleanEmail = email.trim().toLowerCase();
+    
+    // In demo / client-side storage, check against registered users
+    const existing = users.find((u) => u.email.toLowerCase() === cleanEmail);
+    if (!existing) {
+      // Auto-create or reject? Let's check password or allow clean login
+      if (cleanEmail === 'tiago@vyro.pt' || password.length >= 4) {
+        // If it's a new email and password valid, register automatically or ask to register
+        return { success: false, error: 'Utilizador não encontrado. Por favor cria uma nova conta.' };
+      }
+      return { success: false, error: 'Credenciais inválidas.' };
+    }
+
+    if (password.length < 3) {
+      return { success: false, error: 'Palavra-passe muito curta (mínimo 4 caracteres).' };
+    }
+
+    setActiveUserId(existing.id);
+    return { success: true };
+  };
+
+  const register = async (data: RegisterData): Promise<{ success: boolean; error?: string }> => {
+    const cleanEmail = data.email.trim().toLowerCase();
+    if (!cleanEmail || !data.name.trim()) {
+      return { success: false, error: 'Nome e email são obrigatórios.' };
+    }
+
+    if (users.some((u) => u.email.toLowerCase() === cleanEmail)) {
+      return { success: false, error: 'Já existe uma conta associada a este email.' };
+    }
+
+    if (data.password.length < 4) {
+      return { success: false, error: 'A palavra-passe deve ter pelo menos 4 caracteres.' };
+    }
+
+    const newUser: User = {
+      id: 'usr-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5),
+      name: data.name.trim(),
+      email: cleanEmail,
+      phone: data.phone?.trim() || '',
+      favoriteProductIds: [],
+      points: 100, // Welcome bonus of 100 points!
+      tier: 'Standard',
+      preferredSize: data.preferredSize || '39-42',
+      createdAt: new Date().toISOString(),
+    };
+
+    setUsers((prev) => [...prev, newUser]);
+    setActiveUserId(newUser.id);
+    return { success: true };
+  };
+
+  const logout = () => {
+    setActiveUserId(null);
+  };
+
+  const toggleFavorite = (productId: string) => {
+    if (!currentUser) return;
+
+    const isFav = currentUser.favoriteProductIds.includes(productId);
+    const updatedIds = isFav
+      ? currentUser.favoriteProductIds.filter((id) => id !== productId)
+      : [...currentUser.favoriteProductIds, productId];
+
+    setUsers((prev) =>
+      prev.map((u) => (u.id === currentUser.id ? { ...u, favoriteProductIds: updatedIds } : u))
+    );
+  };
+
+  const isFavorite = (productId: string): boolean => {
+    if (!currentUser) return false;
+    return currentUser.favoriteProductIds.includes(productId);
+  };
+
+  const updateProfile = (data: Partial<User>) => {
+    if (!currentUser) return;
+    setUsers((prev) =>
+      prev.map((u) => (u.id === currentUser.id ? { ...u, ...data } : u))
+    );
+  };
+
+  const addPoints = (pointsToAdd: number) => {
+    if (!currentUser) return;
+    const newTotal = (currentUser.points || 0) + pointsToAdd;
+    let newTier: User['tier'] = currentUser.tier;
+
+    if (newTotal >= 1000) {
+      newTier = 'Pro Kinetic';
+    } else if (newTotal >= 400) {
+      newTier = 'Silver Athlete';
+    } else {
+      newTier = 'Standard';
+    }
+
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === currentUser.id ? { ...u, points: newTotal, tier: newTier } : u
+      )
+    );
+  };
+
+  const loginAsDemo = () => {
+    const demo = users.find((u) => u.email === 'tiago@vyro.pt') || INITIAL_DEMO_USERS[0];
+    setActiveUserId(demo.id);
+  };
+
+  return (
+    <UserContext.Provider
+      value={{
+        currentUser,
+        isAuthenticated,
+        favoritesCount,
+        login,
+        register,
+        logout,
+        toggleFavorite,
+        isFavorite,
+        updateProfile,
+        addPoints,
+        loginAsDemo,
+      }}
+    >
+      {children}
+    </UserContext.Provider>
+  );
+};
+
+export const useUser = () => {
+  const context = useContext(UserContext);
+  if (!context) {
+    throw new Error('useUser must be used within a UserProvider');
+  }
+  return context;
+};

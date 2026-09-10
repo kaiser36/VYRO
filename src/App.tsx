@@ -143,7 +143,7 @@ const MainAppContent: React.FC = () => {
             onSelectProduct={(p) => setSelectedProduct(p)}
             onRequireAuth={() => handleOpenAuth('login')}
           />
-          <Footer />
+          <Footer onOpenAdmin={handleOpenAdmin} />
         </>
       )}
 
@@ -165,7 +165,7 @@ const MainAppContent: React.FC = () => {
             onRequireAuth={() => handleOpenAuth('login')}
           />
           <TechSection />
-          <Footer />
+          <Footer onOpenAdmin={handleOpenAdmin} />
         </>
       )}
 

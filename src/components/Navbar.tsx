@@ -150,20 +150,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </button>
 
-          {/* Admin Management Button */}
-          <button
-            onClick={onOpenAdmin}
-            title={isAdmin ? 'Painel Admin Activo' : 'Área de Administração'}
-            className={`hidden sm:flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all cursor-pointer ${
-              isAdmin
-                ? 'bg-cyan-50 border-cyan-300 text-cyan-800 shadow-xs'
-                : 'border-black/10 text-[#6F6F6F] hover:text-[#000000] hover:border-black/30'
-            }`}
-          >
-            <ShieldCheck className={`w-3.5 h-3.5 ${isAdmin ? 'text-cyan-600' : 'text-neutral-400'}`} />
-            <span className="text-[11px]">{isAdmin ? 'Admin' : 'Gestão'}</span>
-          </button>
-
           {/* CTA button: "Ver Meias" */}
           <button
             onClick={() => handleNavClick('catalog')}

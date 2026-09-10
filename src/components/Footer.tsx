@@ -1,7 +1,14 @@
 import React from 'react';
 import { ArrowUp, Mail, ShieldCheck } from 'lucide-react';
+import { useStore } from '../context/StoreContext';
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  onOpenAdmin?: () => void;
+}
+
+export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
+  const { isAdmin } = useStore();
+
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -70,6 +77,17 @@ export const Footer: React.FC = () => {
               <li><a href="#" className="hover:text-black transition-colors">Envios & Devoluções (30 Dias)</a></li>
               <li><a href="#" className="hover:text-black transition-colors">Condições Gerais de Venda</a></li>
               <li><a href="#" className="hover:text-black transition-colors">Política de Privacidade</a></li>
+              {onOpenAdmin && (
+                <li className="pt-2">
+                  <button
+                    onClick={onOpenAdmin}
+                    className="text-neutral-400 hover:text-black flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-cyan-600" />
+                    <span>{isAdmin ? 'Painel de Gestão (Ativo)' : 'Área de Gestão'}</span>
+                  </button>
+                </li>
+              )}
             </ul>
           </div>
 
@@ -106,11 +124,25 @@ export const Footer: React.FC = () => {
             <span className="text-cyan-600 font-semibold">• Move • Live • Repeat</span>
           </div>
 
-          <div className="flex items-center gap-4">
-            <span className="text-[11px] text-neutral-400">Pagamentos Seguros: MB WAY, Multibanco, Visa, Mastercard</span>
+          <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-center">
+            {onOpenAdmin && (
+              <button
+                onClick={onOpenAdmin}
+                title="Área de Gestão do Site"
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all cursor-pointer ${
+                  isAdmin
+                    ? 'bg-cyan-50 border-cyan-300 text-cyan-800 shadow-xs'
+                    : 'border-neutral-200 text-neutral-600 hover:text-black hover:border-black bg-white'
+                }`}
+              >
+                <ShieldCheck className={`w-3.5 h-3.5 ${isAdmin ? 'text-cyan-600' : 'text-neutral-400'}`} />
+                <span>{isAdmin ? 'Admin (Ativo)' : 'Gestão'}</span>
+              </button>
+            )}
+            <span className="text-[11px] text-neutral-400">Pagamentos Seguros: MB WAY, Multibanco, Cartão</span>
             <button
               onClick={scrollToTop}
-              className="p-2 rounded-full border border-neutral-200 hover:border-black hover:text-black transition-colors"
+              className="p-2 rounded-full border border-neutral-200 hover:border-black hover:text-black transition-colors cursor-pointer"
               title="Voltar ao Topo"
             >
               <ArrowUp className="w-4 h-4" />

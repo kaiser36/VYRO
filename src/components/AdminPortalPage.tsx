@@ -54,7 +54,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useUser } from '../context/UserContext';
-import { GuaranteeBadge, ProductColor, LoyaltyGoal, LoyaltyReward, Product } from '../types/store';
+import { GuaranteeBadge, ProductColor, LoyaltyGoal, LoyaltyReward, Product, Order } from '../types/store';
 
 interface AdminPortalPageProps {
   onBackToStore: () => void;
@@ -85,6 +85,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     addCategory,
     updateCategory,
     deleteCategory,
+    updateOrderStatus,
     updateStoreSettings,
     updateCategoryBanner,
     updateAutomaticCoupons,
@@ -4171,10 +4172,24 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                             })}
                           </td>
                           <td className="p-4 text-right">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold">
-                              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>{order.status}</span>
-                            </span>
+                            <select
+                              value={order.status}
+                              onChange={(e) => {
+                                updateOrderStatus(order.id, e.target.value as Order['status']);
+                                showNotification(`Estado da encomenda ${order.id} atualizado para "${e.target.value}".`);
+                              }}
+                              className={`text-[11px] font-bold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none transition-colors ${
+                                order.status === 'Pago'
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                  : order.status === 'Em Preparação'
+                                  ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                  : 'bg-blue-50 text-blue-800 border-blue-300'
+                              }`}
+                            >
+                              <option value="Pago">✓ Pago</option>
+                              <option value="Em Preparação">⏳ Em Preparação</option>
+                              <option value="Enviado">🚚 Enviado</option>
+                            </select>
                           </td>
                         </tr>
                       ))}

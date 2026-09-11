@@ -245,6 +245,7 @@ interface StoreContextType {
   updateCategory: (id: string, categoryData: Partial<Category>) => void;
   deleteCategory: (id: string) => void;
   addOrder: (orderData: Omit<Order, 'id' | 'createdAt'>) => Order;
+  updateOrderStatus: (orderId: string, status: Order['status']) => void;
   updateStoreSettings: (newSettings: Partial<StoreSettings>) => void;
   updateCategoryBanner: (bannerData: Partial<CategoryBannerSettings>) => void;
   updateAutomaticCoupons: (settings: Partial<AutomaticCouponSettings>) => void;
@@ -453,7 +454,38 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       createdAt: new Date().toISOString(),
     };
     setOrders((prev) => [newOrder, ...prev]);
+
+    // Reduzir automaticamente o stock de cada meia comprada na encomenda finalizada:
+    setProducts((prevProducts) =>
+      prevProducts.map((prod) => {
+        const matchingItems = newOrder.items.filter(
+          (item) =>
+            (item.productId && item.productId === prod.id) ||
+            item.productName.toLowerCase().trim() === prod.name.toLowerCase().trim()
+        );
+
+        if (matchingItems.length === 0) return prod;
+
+        const totalSoldQuantity = matchingItems.reduce((acc, it) => acc + (it.quantity || 1), 0);
+        const currentStock = prod.stock !== undefined ? prod.stock : (prod.inStock ? 30 : 0);
+        const updatedStock = Math.max(0, currentStock - totalSoldQuantity);
+        const updatedInStock = updatedStock > 0;
+
+        return {
+          ...prod,
+          stock: updatedStock,
+          inStock: updatedInStock,
+        };
+      })
+    );
+
     return newOrder;
+  };
+
+  const updateOrderStatus = (orderId: string, status: Order['status']) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status } : o))
+    );
   };
 
   const updateStoreSettings = (newSettings: Partial<StoreSettings>) => {
@@ -671,6 +703,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateCategory,
         deleteCategory,
         addOrder,
+        updateOrderStatus,
         updateStoreSettings,
         updateCategoryBanner,
         updateAutomaticCoupons,

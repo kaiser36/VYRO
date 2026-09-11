@@ -75,6 +75,7 @@ export interface StoreSettings {
 }
 
 export interface OrderItem {
+  productId?: string;
   productName: string;
   size: string;
   colorName: string;

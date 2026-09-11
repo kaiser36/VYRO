@@ -136,6 +136,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
       customerEmail: customerEmail,
       customerCity: formData.city,
       items: items.map((it) => ({
+        productId: it.product.id,
         productName: it.product.name,
         size: it.selectedSize,
         colorName: it.selectedColor.name,

@@ -292,6 +292,12 @@ interface StoreContextType {
       tier?: string;
     }
   ) => void;
+  updateReviewStatus: (
+    productId: string,
+    reviewId: string,
+    status: 'approved' | 'rejected' | 'pending'
+  ) => void;
+  deleteReview: (productId: string, reviewId: string) => void;
   toggleReviewLike: (productId: string, reviewId: string) => void;
   resetStoreData: () => void;
 }
@@ -749,6 +755,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
   };
 
+  const calculateReviewsStats = (reviews: ProductReview[]) => {
+    const approved = reviews.filter((r) => r.status === 'approved' || !r.status);
+    if (approved.length === 0) {
+      return { rating: 5.0, count: 0 };
+    }
+    const total = approved.reduce((sum, r) => sum + r.rating, 0);
+    return {
+      rating: parseFloat((total / approved.length).toFixed(1)),
+      count: approved.length,
+    };
+  };
+
   const addProductReview = (
     productId: string,
     reviewData: {
@@ -779,6 +797,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       verifiedAthlete: true,
       createdAt: new Date().toISOString(),
       likes: 0,
+      status: 'pending',
     };
 
     setProducts((prev) =>
@@ -786,13 +805,47 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (p.id !== productId) return p;
         const currentReviews = p.reviews || [];
         const updatedReviews = [newReview, ...currentReviews];
-        const totalRating = updatedReviews.reduce((acc, r) => acc + r.rating, 0);
-        const avgRating = parseFloat((totalRating / updatedReviews.length).toFixed(1));
         return {
           ...p,
-          rating: avgRating,
-          reviewCount: (p.reviewCount || 0) + 1,
           reviews: updatedReviews,
+        };
+      })
+    );
+  };
+
+  const updateReviewStatus = (
+    productId: string,
+    reviewId: string,
+    status: 'approved' | 'rejected' | 'pending'
+  ) => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id !== productId || !p.reviews) return p;
+        const updatedReviews = p.reviews.map((r) =>
+          r.id === reviewId ? { ...r, status } : r
+        );
+        const stats = calculateReviewsStats(updatedReviews);
+        return {
+          ...p,
+          reviews: updatedReviews,
+          rating: stats.count > 0 ? stats.rating : p.rating,
+          reviewCount: stats.count,
+        };
+      })
+    );
+  };
+
+  const deleteReview = (productId: string, reviewId: string) => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id !== productId || !p.reviews) return p;
+        const updatedReviews = p.reviews.filter((r) => r.id !== reviewId);
+        const stats = calculateReviewsStats(updatedReviews);
+        return {
+          ...p,
+          reviews: updatedReviews,
+          rating: stats.count > 0 ? stats.rating : p.rating,
+          reviewCount: stats.count,
         };
       })
     );
@@ -857,6 +910,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateLoyaltyGoal,
         deleteLoyaltyGoal,
         addProductReview,
+        updateReviewStatus,
+        deleteReview,
         toggleReviewLike,
         resetStoreData,
       }}

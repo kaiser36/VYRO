@@ -18,6 +18,7 @@ import {
   PenLine,
   UserCheck,
   Lock,
+  Clock,
 } from 'lucide-react';
 import { Product, ProductColor } from '../types/store';
 import { useCart } from '../context/CartContext';
@@ -85,12 +86,23 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     }, 1800);
   };
 
-  const reviews = activeProduct.reviews || [];
-  const totalReviews = reviews.length;
-  const averageRating = activeProduct.rating || 5.0;
+  const allReviews = activeProduct.reviews || [];
+  const approvedReviews = allReviews.filter((r) => r.status === 'approved' || !r.status);
+  const displayReviews = allReviews.filter((r) => {
+    if (r.status === 'approved' || !r.status) return true;
+    if (r.status === 'pending' && currentUser && (r.userId === currentUser.id || r.userEmail === currentUser.email)) {
+      return true;
+    }
+    return false;
+  });
+
+  const totalReviews = approvedReviews.length;
+  const averageRating = approvedReviews.length > 0
+    ? parseFloat((approvedReviews.reduce((sum, r) => sum + r.rating, 0) / approvedReviews.length).toFixed(1))
+    : activeProduct.rating || 5.0;
 
   const starCounts = [5, 4, 3, 2, 1].map((stars) => {
-    const count = reviews.filter((r) => Math.round(r.rating) === stars).length;
+    const count = approvedReviews.filter((r) => Math.round(r.rating) === stars).length;
     const percentage = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
     return { stars, count, percentage };
   });
@@ -527,7 +539,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             <div className="mb-8 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-3 animate-fade-in">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
               <div className="text-sm">
-                <span className="font-bold">Obrigado pela tua avaliação!</span> A tua opinião foi publicada com sucesso e já está visível para a comunidade de atletas.
+                <span className="font-bold">Obrigado pela tua avaliação!</span> A tua opinião foi submetida com sucesso e ficará visível após aprovação pela equipa VYRO.
               </div>
             </div>
           )}
@@ -721,10 +733,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
           </div>
 
           {/* Reviews List */}
-          {reviews.length === 0 ? (
+          {displayReviews.length === 0 ? (
             <div className="text-center py-16 px-4 border border-dashed border-neutral-200 rounded-3xl">
               <MessageSquare className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
-              <h4 className="text-base font-semibold text-black">Ainda não existem avaliações</h4>
+              <h4 className="text-base font-semibold text-black">Ainda não existem avaliações aprovadas</h4>
               <p className="text-xs text-neutral-500 mt-1 max-w-sm mx-auto">
                 Sê o primeiro atleta a partilhar a tua opinião sobre o desempenho deste modelo.
               </p>
@@ -750,7 +762,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             </div>
           ) : (
             <div className="space-y-4">
-              {reviews.map((rev) => (
+              {displayReviews.map((rev) => (
                 <div
                   key={rev.id}
                   className="p-6 sm:p-7 rounded-2xl border border-neutral-200/90 bg-white hover:border-neutral-300 transition-colors shadow-xs"
@@ -768,6 +780,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                         {rev.size && (
                           <span className="text-[11px] font-medium text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded-md">
                             Tam. {rev.size}
+                          </span>
+                        )}
+                        {rev.status === 'pending' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+                            <Clock className="w-3 h-3 text-amber-700" />
+                            Em Moderação
                           </span>
                         )}
                       </div>

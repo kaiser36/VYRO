@@ -128,6 +128,7 @@ export interface ProductReview {
   verifiedAthlete?: boolean;
   createdAt: string;
   likes?: number;
+  status?: 'pending' | 'approved' | 'rejected';
 }
 
 export interface Product {

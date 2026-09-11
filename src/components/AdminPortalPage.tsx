@@ -51,6 +51,11 @@ import {
   Copy,
   CheckCheck,
   Send,
+  MessageSquare,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ThumbsUp,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useUser } from '../context/UserContext';
@@ -106,6 +111,8 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     addLoyaltyGoal,
     updateLoyaltyGoal,
     deleteLoyaltyGoal,
+    updateReviewStatus,
+    deleteReview,
   } = useStore();
 
   const { users, updateUserPoints, assignCouponToUser } = useUser();
@@ -121,7 +128,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
 
   // Dashboard active tab (Adicionar Nova Meia tab removed, starts on list-products)
   const [activeTab, setActiveTab] = useState<
-    'list-products' | 'categories' | 'settings' | 'loyalty' | 'stats'
+    'list-products' | 'categories' | 'settings' | 'loyalty' | 'stats' | 'reviews'
   >('list-products');
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -541,6 +548,84 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
   const showNotification = (msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3500);
+  };
+
+  // Reviews Moderation State
+  const [reviewStatusFilter, setReviewStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [reviewProductFilter, setReviewProductFilter] = useState<string>('all');
+  const [reviewSearchQuery, setReviewSearchQuery] = useState<string>('');
+  const [reviewRatingFilter, setReviewRatingFilter] = useState<string>('all');
+
+  // Flatten all reviews across all products with product details
+  const allReviewsWithProduct = products.flatMap((p) =>
+    (p.reviews || []).map((r) => ({
+      ...r,
+      productName: p.name,
+      productImage: p.images?.[0] || PRESET_SOCKS_IMAGES[0],
+      productCategory: p.categoryName,
+      productPrice: p.price,
+    }))
+  ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const pendingReviewsCount = allReviewsWithProduct.filter(
+    (r) => r.status === 'pending'
+  ).length;
+  const approvedReviewsCount = allReviewsWithProduct.filter(
+    (r) => r.status === 'approved' || !r.status
+  ).length;
+  const rejectedReviewsCount = allReviewsWithProduct.filter(
+    (r) => r.status === 'rejected'
+  ).length;
+
+  const filteredReviews = allReviewsWithProduct.filter((r) => {
+    // Status filter
+    if (reviewStatusFilter !== 'all') {
+      const currentStatus = r.status || 'approved';
+      if (currentStatus !== reviewStatusFilter) return false;
+    }
+    // Product filter
+    if (reviewProductFilter !== 'all' && r.productId !== reviewProductFilter) {
+      return false;
+    }
+    // Rating filter
+    if (reviewRatingFilter !== 'all' && r.rating !== Number(reviewRatingFilter)) {
+      return false;
+    }
+    // Search query
+    if (reviewSearchQuery.trim()) {
+      const q = reviewSearchQuery.toLowerCase();
+      const matchName = r.userName.toLowerCase().includes(q);
+      const matchEmail = (r.userEmail || '').toLowerCase().includes(q);
+      const matchTitle = (r.title || '').toLowerCase().includes(q);
+      const matchComment = r.comment.toLowerCase().includes(q);
+      const matchProduct = r.productName.toLowerCase().includes(q);
+      if (!matchName && !matchEmail && !matchTitle && !matchComment && !matchProduct) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  const handleApproveReview = (productId: string, reviewId: string, authorName: string) => {
+    updateReviewStatus(productId, reviewId, 'approved');
+    showNotification(`Avaliação de "${authorName}" aprovada com sucesso! Já está visível na loja.`);
+  };
+
+  const handleRejectReview = (productId: string, reviewId: string, authorName: string) => {
+    updateReviewStatus(productId, reviewId, 'rejected');
+    showNotification(`Avaliação de "${authorName}" rejeitada e ocultada da loja.`);
+  };
+
+  const handlePendingReview = (productId: string, reviewId: string, authorName: string) => {
+    updateReviewStatus(productId, reviewId, 'pending');
+    showNotification(`Avaliação de "${authorName}" colocada novamente como pendente.`);
+  };
+
+  const handleDeleteReview = (productId: string, reviewId: string, authorName: string) => {
+    if (window.confirm(`Tem a certeza que deseja eliminar definitivamente a avaliação de "${authorName}"?`)) {
+      deleteReview(productId, reviewId);
+      showNotification(`Avaliação de "${authorName}" eliminada com sucesso.`);
+    }
   };
 
   // Catalog List Filters State
@@ -1054,6 +1139,23 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
           >
             <TrendingUp className="w-4 h-4 text-cyan-400" />
             <span>Métricas & Vendas</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('reviews')}
+            className={`flex items-center gap-2 py-2.5 px-5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+              activeTab === 'reviews'
+                ? 'bg-black text-white shadow-md'
+                : 'text-neutral-600 hover:text-black hover:bg-neutral-100'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4 text-cyan-400" />
+            <span>Avaliações ({allReviewsWithProduct.length})</span>
+            {pendingReviewsCount > 0 && (
+              <span className="ml-1 px-2 py-0.5 text-[10px] font-extrabold bg-amber-500 text-white rounded-full animate-pulse">
+                {pendingReviewsCount} pendente{pendingReviewsCount > 1 ? 's' : ''}
+              </span>
+            )}
           </button>
         </div>
 
@@ -4479,6 +4581,394 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                   </table>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB: REVIEWS / AVALIAÇÕES DE CLIENTES */}
+          {activeTab === 'reviews' && (
+            <div className="space-y-8 animate-fade-rise">
+              {/* Header */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-neutral-100">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-50 border border-cyan-200/60 text-cyan-700 text-xs font-semibold mb-2">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Moderação da Comunidade</span>
+                  </div>
+                  <h2 className="font-serif text-2xl sm:text-3xl font-bold text-black">
+                    Avaliações & Opiniões de Atletas
+                  </h2>
+                  <p className="text-xs text-neutral-500 mt-1">
+                    Revê, aprova ou rejeita as avaliações submetidas por clientes registados antes de ficarem visíveis publicamente no site.
+                  </p>
+                </div>
+
+                {pendingReviewsCount > 0 && (
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold">
+                    <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
+                    <span>Tens {pendingReviewsCount} {pendingReviewsCount === 1 ? 'avaliação pendente' : 'avaliações pendentes'} de aprovação</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Stats Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-5 rounded-2xl bg-neutral-50 border border-neutral-200">
+                  <div className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                    Total Submetidas
+                  </div>
+                  <div className="font-serif text-3xl font-bold text-black mt-2">
+                    {allReviewsWithProduct.length}
+                  </div>
+                  <div className="text-[11px] text-neutral-400 mt-1">
+                    Em todos os artigos da loja
+                  </div>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-amber-50/70 border border-amber-200">
+                  <div className="text-xs font-semibold text-amber-800 uppercase tracking-wider flex items-center justify-between">
+                    <span>Pendentes</span>
+                    <Clock className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div className="font-serif text-3xl font-bold text-amber-900 mt-2">
+                    {pendingReviewsCount}
+                  </div>
+                  <div className="text-[11px] text-amber-700 mt-1">
+                    Requerem validação
+                  </div>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200">
+                  <div className="text-xs font-semibold text-emerald-800 uppercase tracking-wider flex items-center justify-between">
+                    <span>Aprovadas</span>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div className="font-serif text-3xl font-bold text-emerald-900 mt-2">
+                    {approvedReviewsCount}
+                  </div>
+                  <div className="text-[11px] text-emerald-700 mt-1">
+                    Visíveis publicamente
+                  </div>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-rose-50/70 border border-rose-200">
+                  <div className="text-xs font-semibold text-rose-800 uppercase tracking-wider flex items-center justify-between">
+                    <span>Rejeitadas</span>
+                    <XCircle className="w-4 h-4 text-rose-600" />
+                  </div>
+                  <div className="font-serif text-3xl font-bold text-rose-900 mt-2">
+                    {rejectedReviewsCount}
+                  </div>
+                  <div className="text-[11px] text-rose-700 mt-1">
+                    Ocultas da loja
+                  </div>
+                </div>
+              </div>
+
+              {/* Filters & Search Toolbar */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-neutral-50 border border-neutral-200 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  {/* Status Pills */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      onClick={() => setReviewStatusFilter('all')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        reviewStatusFilter === 'all'
+                          ? 'bg-black text-white shadow-xs'
+                          : 'bg-white text-neutral-600 hover:text-black border border-neutral-200'
+                      }`}
+                    >
+                      Todas ({allReviewsWithProduct.length})
+                    </button>
+                    <button
+                      onClick={() => setReviewStatusFilter('pending')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        reviewStatusFilter === 'pending'
+                          ? 'bg-amber-500 text-white shadow-xs'
+                          : 'bg-white text-amber-800 hover:bg-amber-50 border border-amber-200'
+                      }`}
+                    >
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>Pendentes ({pendingReviewsCount})</span>
+                    </button>
+                    <button
+                      onClick={() => setReviewStatusFilter('approved')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        reviewStatusFilter === 'approved'
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-white text-emerald-800 hover:bg-emerald-50 border border-emerald-200'
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Aprovadas ({approvedReviewsCount})</span>
+                    </button>
+                    <button
+                      onClick={() => setReviewStatusFilter('rejected')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        reviewStatusFilter === 'rejected'
+                          ? 'bg-rose-600 text-white shadow-xs'
+                          : 'bg-white text-rose-800 hover:bg-rose-50 border border-rose-200'
+                      }`}
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      <span>Rejeitadas ({rejectedReviewsCount})</span>
+                    </button>
+                  </div>
+
+                  {(reviewStatusFilter !== 'all' ||
+                    reviewProductFilter !== 'all' ||
+                    reviewRatingFilter !== 'all' ||
+                    reviewSearchQuery.trim() !== '') && (
+                    <button
+                      onClick={() => {
+                        setReviewStatusFilter('all');
+                        setReviewProductFilter('all');
+                        setReviewRatingFilter('all');
+                        setReviewSearchQuery('');
+                      }}
+                      className="text-xs text-neutral-500 hover:text-black underline cursor-pointer"
+                    >
+                      Limpar Filtros
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-neutral-200/60">
+                  {/* Search input */}
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Pesquisar por atleta, email, comentário..."
+                      value={reviewSearchQuery}
+                      onChange={(e) => setReviewSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 rounded-xl bg-white border border-neutral-300 text-xs focus:outline-none focus:border-black"
+                    />
+                  </div>
+
+                  {/* Filter by Product */}
+                  <div>
+                    <select
+                      value={reviewProductFilter}
+                      onChange={(e) => setReviewProductFilter(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-white border border-neutral-300 text-xs text-neutral-800 focus:outline-none focus:border-black cursor-pointer"
+                    >
+                      <option value="all">Todos os Artigos</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Filter by Rating */}
+                  <div>
+                    <select
+                      value={reviewRatingFilter}
+                      onChange={(e) => setReviewRatingFilter(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-white border border-neutral-300 text-xs text-neutral-800 focus:outline-none focus:border-black cursor-pointer"
+                    >
+                      <option value="all">Todas as Pontuações</option>
+                      <option value="5">5 Estrelas (★★★★★)</option>
+                      <option value="4">4 Estrelas (★★★★☆)</option>
+                      <option value="3">3 Estrelas (★★★☆☆)</option>
+                      <option value="2">2 Estrelas (★★☆☆☆)</option>
+                      <option value="1">1 Estrela (★☆☆☆☆)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Reviews List */}
+              {filteredReviews.length === 0 ? (
+                <div className="text-center py-16 px-4 border border-dashed border-neutral-200 rounded-3xl">
+                  <MessageSquare className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
+                  <h4 className="text-sm font-semibold text-black">Nenhuma avaliação encontrada</h4>
+                  <p className="text-xs text-neutral-500 mt-1 max-w-sm mx-auto">
+                    Não existem avaliações com os filtros selecionados.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredReviews.map((rev) => {
+                    const status = rev.status || 'approved';
+                    return (
+                      <div
+                        key={rev.id}
+                        className={`p-5 sm:p-6 rounded-2xl border transition-all ${
+                          status === 'pending'
+                            ? 'bg-amber-50/40 border-amber-300/80 shadow-xs'
+                            : status === 'rejected'
+                            ? 'bg-rose-50/30 border-rose-200'
+                            : 'bg-white border-neutral-200'
+                        }`}
+                      >
+                        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+                          {/* Left: Product & Author Info */}
+                          <div className="flex-1 space-y-3">
+                            {/* Product Info Bar */}
+                            <div className="flex items-center gap-3 pb-3 border-b border-neutral-100">
+                              <img
+                                src={rev.productImage}
+                                alt={rev.productName}
+                                className="w-12 h-12 object-cover rounded-xl border border-neutral-200 shrink-0"
+                              />
+                              <div>
+                                <span className="text-[10px] uppercase tracking-wider font-bold text-cyan-600 block">
+                                  {rev.productCategory}
+                                </span>
+                                <h4 className="text-sm font-bold text-black">{rev.productName}</h4>
+                                <span className="text-xs text-neutral-500">€{rev.productPrice?.toFixed(2)}</span>
+                              </div>
+                            </div>
+
+                            {/* Author & Review Content */}
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                                <span className="font-bold text-sm text-neutral-900">{rev.userName}</span>
+                                {rev.userEmail && (
+                                  <span className="text-xs text-neutral-400">({rev.userEmail})</span>
+                                )}
+                                {rev.verifiedAthlete && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2 py-0.5 rounded-full">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                    Atleta Verificado
+                                  </span>
+                                )}
+                                {rev.size && (
+                                  <span className="text-[10px] font-semibold text-neutral-700 bg-neutral-100 px-2 py-0.5 rounded-md">
+                                    Tamanho: {rev.size}
+                                  </span>
+                                )}
+                                {rev.color && (
+                                  <span className="text-[10px] font-semibold text-neutral-700 bg-neutral-100 px-2 py-0.5 rounded-md">
+                                    Cor: {rev.color}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="flex items-center gap-0.5">
+                                  {[1, 2, 3, 4, 5].map((s) => (
+                                    <Star
+                                      key={s}
+                                      className={`w-3.5 h-3.5 ${
+                                        s <= rev.rating
+                                          ? 'text-amber-400 fill-amber-400'
+                                          : 'text-neutral-200'
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                                <span className="text-xs font-semibold text-neutral-700">{rev.rating}/5</span>
+                                <span className="text-xs text-neutral-400">•</span>
+                                <span className="text-xs text-neutral-400">
+                                  {new Date(rev.createdAt).toLocaleDateString('pt-PT', {
+                                    day: '2-digit',
+                                    month: 'long',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                              </div>
+
+                              {rev.title && (
+                                <h5 className="text-xs sm:text-sm font-bold text-neutral-900 mb-1">
+                                  "{rev.title}"
+                                </h5>
+                              )}
+
+                              <p className="text-xs sm:text-sm text-neutral-700 leading-relaxed bg-white/60 p-3 rounded-xl border border-neutral-100">
+                                {rev.comment}
+                              </p>
+
+                              {rev.likes !== undefined && rev.likes > 0 && (
+                                <div className="flex items-center gap-1.5 text-xs text-neutral-400 mt-2">
+                                  <ThumbsUp className="w-3.5 h-3.5 text-cyan-600" />
+                                  <span>{rev.likes} atleta{rev.likes > 1 ? 's' : ''} consideraram útil</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Right: Status Badge & Actions */}
+                          <div className="lg:w-64 flex flex-col justify-between gap-4 shrink-0 pt-4 lg:pt-0 lg:border-l lg:border-neutral-100 lg:pl-6">
+                            <div>
+                              <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-400 block mb-1.5">
+                                Estado Atual
+                              </span>
+                              {status === 'pending' && (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold">
+                                  <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                                  <span>Pendente de Aprovação</span>
+                                </div>
+                              )}
+                              {status === 'approved' && (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Aprovada (Pública)</span>
+                                </div>
+                              )}
+                              {status === 'rejected' && (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-300 text-xs font-bold">
+                                  <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                                  <span>Rejeitada (Oculta)</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="space-y-2 pt-2 border-t border-neutral-100">
+                              {status !== 'approved' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleApproveReview(rev.productId, rev.id, rev.userName)}
+                                  className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  <span>Aprovar Avaliação</span>
+                                </button>
+                              )}
+
+                              {status !== 'rejected' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRejectReview(rev.productId, rev.id, rev.userName)}
+                                  className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-neutral-100 hover:bg-rose-100 text-neutral-700 hover:text-rose-700 border border-neutral-200 hover:border-rose-300 text-xs font-semibold transition-colors cursor-pointer"
+                                >
+                                  <XCircle className="w-4 h-4 text-rose-500" />
+                                  <span>Rejeitar / Ocultar</span>
+                                </button>
+                              )}
+
+                              {status !== 'pending' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handlePendingReview(rev.productId, rev.id, rev.userName)}
+                                  className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-neutral-500 hover:text-amber-700 text-[11px] font-medium hover:bg-amber-50 transition-colors cursor-pointer"
+                                >
+                                  <Clock className="w-3.5 h-3.5" />
+                                  <span>Marcar como Pendente</span>
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteReview(rev.productId, rev.id, rev.userName)}
+                                className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-neutral-400 hover:text-rose-600 text-[11px] font-medium hover:bg-rose-50 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Eliminar Definitivamente</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>

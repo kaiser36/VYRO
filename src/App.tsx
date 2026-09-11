@@ -4,6 +4,7 @@ import { CartProvider, useCart } from './context/CartContext';
 import { UserProvider, useUser } from './context/UserContext';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
+import { FeaturedProductsSection } from './components/FeaturedProductsSection';
 import { ProductCatalog } from './components/ProductCatalog';
 import { TechSection } from './components/TechSection';
 import { Footer } from './components/Footer';
@@ -184,6 +185,12 @@ const MainAppContent: React.FC = () => {
             onSelectCategory={handleSelectCategory}
           />
           <HeroSection onExploreClick={scrollToCatalog} />
+          <FeaturedProductsSection
+            onQuickView={handleOpenProductDetail}
+            onRequireAuth={() => handleOpenAuth('login')}
+            onOpenAdmin={handleOpenAdmin}
+            onExploreAll={scrollToCatalog}
+          />
           <ProductCatalog
             onQuickView={handleOpenProductDetail}
             onOpenAdmin={handleOpenAdmin}

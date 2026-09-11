@@ -43,6 +43,7 @@ import {
   Heart,
   Mail,
   UserCheck,
+  Star,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useUser } from '../context/UserContext';
@@ -72,6 +73,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     logoutAdmin,
     addProduct,
     updateProduct,
+    toggleFeaturedProduct,
     deleteProduct,
     addCategory,
     updateCategory,
@@ -125,6 +127,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
   const [prodSizes, setProdSizes] = useState<string[]>(['35-38', '39-42', '43-46']);
   const [prodColors, setProdColors] = useState<ProductColor[]>([]);
   const [prodImageUrl, setProdImageUrl] = useState(PRESET_SOCKS_IMAGES[0]);
+  const [prodIsFeatured, setProdIsFeatured] = useState(false);
 
   // Initialize selected product colors from available colors
   useEffect(() => {
@@ -210,6 +213,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
   const [catalogCategoryFilter, setCatalogCategoryFilter] = useState('all');
   const [catalogStockFilter, setCatalogStockFilter] = useState<'all' | 'in-stock' | 'out-of-stock'>('all');
   const [catalogBadgeFilter, setCatalogBadgeFilter] = useState('all');
+  const [catalogFeaturedFilter, setCatalogFeaturedFilter] = useState<'all' | 'featured' | 'not-featured'>('all');
   const [catalogSortBy, setCatalogSortBy] = useState<'newest' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc'>('newest');
 
   // Filtered Catalog Products
@@ -236,6 +240,13 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
         return false;
       }
       if (catalogStockFilter === 'out-of-stock' && p.inStock) {
+        return false;
+      }
+      // Featured filter
+      if (catalogFeaturedFilter === 'featured' && !p.isFeatured) {
+        return false;
+      }
+      if (catalogFeaturedFilter === 'not-featured' && p.isFeatured) {
         return false;
       }
       // Badge filter
@@ -271,6 +282,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     catalogCategoryFilter !== 'all' ||
     catalogStockFilter !== 'all' ||
     catalogBadgeFilter !== 'all' ||
+    catalogFeaturedFilter !== 'all' ||
     catalogSortBy !== 'newest';
 
   const resetCatalogFilters = () => {
@@ -278,6 +290,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     setCatalogCategoryFilter('all');
     setCatalogStockFilter('all');
     setCatalogBadgeFilter('all');
+    setCatalogFeaturedFilter('all');
     setCatalogSortBy('newest');
   };
 
@@ -359,6 +372,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
       images: [prodImageUrl],
       badge: prodBadge || undefined,
       inStock: true,
+      isFeatured: prodIsFeatured,
     });
 
     showNotification(`Meia "${prodName}" adicionada com sucesso ao catálogo!`);
@@ -367,6 +381,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     setProdPrice('');
     setProdOriginalPrice('');
     setProdDescription('');
+    setProdIsFeatured(false);
   };
 
   const handleStartEditCategory = (cat: { id: string; name: string; slug: string; description: string }) => {
@@ -942,6 +957,32 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                   </div>
                 </div>
 
+                {/* Featured in Home Section Toggle */}
+                <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
+                      <Star className="w-5 h-5 fill-amber-500 text-amber-500" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-amber-950">
+                        Destacar na Página Inicial (Bloco pós-Hero)
+                      </div>
+                      <div className="text-[11px] text-amber-800/80">
+                        Esta meia aparecerá em destaque no bloco exclusivo logo a seguir ao Hero.
+                      </div>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={prodIsFeatured}
+                      onChange={(e) => setProdIsFeatured(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                  </label>
+                </div>
+
                 <div className="pt-6 border-t border-neutral-200 flex justify-end gap-3">
                   <button
                     type="submit"
@@ -993,28 +1034,121 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                 </div>
               </div>
 
+              {/* FEATURED SOCKS SPOTLIGHT MANAGEMENT BANNER */}
+              <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-200/90 rounded-3xl p-5 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
+                      <Star className="w-5 h-5 fill-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm sm:text-base text-neutral-900 flex items-center gap-2">
+                        <span>Meias em Destaque na Página Inicial</span>
+                        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                          {products.filter((p) => p.isFeatured).length} selecionada(s)
+                        </span>
+                      </h3>
+                      <p className="text-xs text-neutral-500">
+                        Estes modelos são exibidos no bloco exclusivo logo a seguir ao Hero. Ative ou desative qualquer modelo com 1 clique.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setCatalogFeaturedFilter(catalogFeaturedFilter === 'featured' ? 'all' : 'featured')}
+                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+                      catalogFeaturedFilter === 'featured'
+                        ? 'bg-amber-600 text-white shadow-sm'
+                        : 'bg-white border border-amber-300 text-amber-950 hover:bg-amber-50'
+                    }`}
+                  >
+                    <Star className="w-3.5 h-3.5 fill-current" />
+                    <span>{catalogFeaturedFilter === 'featured' ? 'A ver apenas Destaques' : 'Filtrar por Destaques'}</span>
+                  </button>
+                </div>
+
+                {/* Quick Avatar Strip of Currently Featured Socks */}
+                <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-amber-200/50">
+                  {products.filter((p) => p.isFeatured).length === 0 ? (
+                    <div className="text-xs text-amber-800 italic py-1">
+                      Nenhuma meia marcada como destaque no momento. Clique no botão "Destacar" na tabela abaixo para escolher quais devem aparecer no bloco principal.
+                    </div>
+                  ) : (
+                    products
+                      .filter((p) => p.isFeatured)
+                      .map((featProd) => (
+                        <div
+                          key={featProd.id}
+                          className="flex items-center gap-2.5 pl-2 pr-2.5 py-1.5 rounded-2xl bg-white border border-amber-300 shadow-xs hover:shadow transition-all"
+                        >
+                          <img
+                            src={featProd.images[0]}
+                            alt={featProd.name}
+                            className="w-7 h-7 rounded-lg object-cover"
+                          />
+                          <div className="text-xs font-bold text-neutral-800 max-w-[140px] truncate">
+                            {featProd.name}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              toggleFeaturedProduct(featProd.id);
+                              showNotification(`"${featProd.name}" removida dos destaques.`);
+                            }}
+                            className="text-neutral-400 hover:text-red-500 p-0.5 rounded-full hover:bg-red-50 transition-colors cursor-pointer"
+                            title="Remover dos destaques"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+
               {/* QUICK CATEGORY PILLS BAR */}
               <div className="flex flex-wrap items-center gap-2 pb-1">
                 <button
                   type="button"
-                  onClick={() => setCatalogCategoryFilter('all')}
+                  onClick={() => {
+                    setCatalogCategoryFilter('all');
+                    setCatalogFeaturedFilter('all');
+                  }}
                   className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                    catalogCategoryFilter === 'all'
+                    catalogCategoryFilter === 'all' && catalogFeaturedFilter === 'all'
                       ? 'bg-black text-white shadow-sm'
                       : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
                   }`}
                 >
                   Todas ({products.length})
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCatalogFeaturedFilter(catalogFeaturedFilter === 'featured' ? 'all' : 'featured')}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer ${
+                    catalogFeaturedFilter === 'featured'
+                      ? 'bg-amber-500 text-white shadow-sm'
+                      : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'
+                  }`}
+                >
+                  <Star className="w-3.5 h-3.5 fill-current" />
+                  <span>Destaques ({products.filter((p) => p.isFeatured).length})</span>
+                </button>
+
                 {categories.map((cat) => {
                   const count = products.filter((p) => p.categoryId === cat.id).length;
                   return (
                     <button
                       type="button"
                       key={cat.id}
-                      onClick={() => setCatalogCategoryFilter(cat.id)}
+                      onClick={() => {
+                        setCatalogCategoryFilter(cat.id);
+                        setCatalogFeaturedFilter('all');
+                      }}
                       className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                        catalogCategoryFilter === cat.id
+                        catalogCategoryFilter === cat.id && catalogFeaturedFilter === 'all'
                           ? 'bg-black text-white shadow-sm'
                           : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
                       }`}
@@ -1251,6 +1385,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                         <th className="p-4">Badge</th>
                         <th className="p-4">Preço</th>
                         <th className="p-4">Stock</th>
+                        <th className="p-4 text-center">Destaque na Home</th>
                         <th className="p-4 text-right">Ações</th>
                       </tr>
                     </thead>
@@ -1310,6 +1445,28 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                               }`}
                             >
                               {p.inStock ? 'Em Stock ✓' : 'Esgotado ✕'}
+                            </button>
+                          </td>
+                          <td className="p-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                toggleFeaturedProduct(p.id);
+                                showNotification(
+                                  p.isFeatured
+                                    ? `"${p.name}" removida do bloco de destaques da página principal.`
+                                    : `"${p.name}" colocada no bloco de meias em destaque!`
+                                );
+                              }}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer shadow-xs ${
+                                p.isFeatured
+                                  ? 'bg-amber-100 text-amber-950 border border-amber-300 hover:bg-amber-200'
+                                  : 'bg-neutral-100 text-neutral-500 border border-neutral-200 hover:bg-neutral-200 hover:text-black'
+                              }`}
+                              title={p.isFeatured ? 'Remover do bloco em destaque' : 'Colocar no bloco em destaque'}
+                            >
+                              <Star className={`w-3.5 h-3.5 ${p.isFeatured ? 'fill-amber-500 text-amber-500' : 'text-neutral-400'}`} />
+                              <span>{p.isFeatured ? 'Em Destaque ★' : 'Destacar'}</span>
                             </button>
                           </td>
                           <td className="p-4 text-right">

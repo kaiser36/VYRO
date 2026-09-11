@@ -64,6 +64,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.9,
     reviewCount: 142,
     inStock: true,
+    isFeatured: true,
     createdAt: '2026-01-15T10:00:00Z',
   },
   {
@@ -95,6 +96,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.8,
     reviewCount: 98,
     inStock: true,
+    isFeatured: true,
     createdAt: '2026-02-01T14:30:00Z',
   },
   {
@@ -126,6 +128,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 5.0,
     reviewCount: 64,
     inStock: true,
+    isFeatured: true,
     createdAt: '2026-02-20T08:15:00Z',
   },
   {

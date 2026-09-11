@@ -198,6 +198,7 @@ interface StoreContextType {
   logoutAdmin: () => void;
   addProduct: (productData: Omit<Product, 'id' | 'createdAt' | 'rating' | 'reviewCount'>) => Product;
   updateProduct: (id: string, productData: Partial<Product>) => void;
+  toggleFeaturedProduct: (id: string) => void;
   deleteProduct: (id: string) => void;
   addCategory: (categoryData: Omit<Category, 'id'>) => Category;
   updateCategory: (id: string, categoryData: Partial<Category>) => void;
@@ -237,7 +238,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-      return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+      if (saved) {
+        const parsed: Product[] = JSON.parse(saved);
+        const hasFeatured = parsed.some((p) => p.isFeatured === true);
+        if (!hasFeatured && parsed.length > 0) {
+          return parsed.map((p, idx) => ({
+            ...p,
+            isFeatured: idx < 3,
+          }));
+        }
+        return parsed;
+      }
+      return INITIAL_PRODUCTS;
     } catch {
       return INITIAL_PRODUCTS;
     }
@@ -344,6 +356,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateProduct = (id: string, productData: Partial<Product>) => {
     setProducts((prev) =>
       prev.map((prod) => (prod.id === id ? { ...prod, ...productData } : prod))
+    );
+  };
+
+  const toggleFeaturedProduct = (id: string) => {
+    setProducts((prev) =>
+      prev.map((prod) => (prod.id === id ? { ...prod, isFeatured: !prod.isFeatured } : prod))
     );
   };
 
@@ -575,6 +593,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         logoutAdmin,
         addProduct,
         updateProduct,
+        toggleFeaturedProduct,
         deleteProduct,
         addCategory,
         updateCategory,

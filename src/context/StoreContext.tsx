@@ -13,6 +13,11 @@ import {
   AutomaticCouponSettings,
 } from '../types/store';
 import { INITIAL_CATEGORIES, INITIAL_ORDERS, INITIAL_PRODUCTS } from '../data/initialData';
+import {
+  DEFAULT_BREVO_SETTINGS,
+  sendOrderConfirmationEmail,
+  sendOrderStatusUpdateEmail,
+} from '../services/emailService';
 
 export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   freeShippingThreshold: 40.0,
@@ -227,6 +232,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     firstOrderCouponEnabled: true,
     firstOrderCouponCode: 'OBRIGADO10',
   },
+  brevoSettings: DEFAULT_BREVO_SETTINGS,
 };
 
 interface StoreContextType {
@@ -245,7 +251,11 @@ interface StoreContextType {
   updateCategory: (id: string, categoryData: Partial<Category>) => void;
   deleteCategory: (id: string) => void;
   addOrder: (orderData: Omit<Order, 'id' | 'createdAt'>) => Order;
-  updateOrderStatus: (orderId: string, status: Order['status']) => void;
+  updateOrderStatus: (
+    orderId: string,
+    status: Order['status'],
+    trackingInfo?: { trackingNumber?: string; trackingCarrier?: string; trackingUrl?: string }
+  ) => void;
   updateStoreSettings: (newSettings: Partial<StoreSettings>) => void;
   updateCategoryBanner: (bannerData: Partial<CategoryBannerSettings>) => void;
   updateAutomaticCoupons: (settings: Partial<AutomaticCouponSettings>) => void;
@@ -311,7 +321,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [orders, setOrders] = useState<Order[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.ORDERS);
-      return saved ? JSON.parse(saved) : INITIAL_ORDERS;
+      const rawOrders: Order[] = saved ? JSON.parse(saved) : INITIAL_ORDERS;
+      return rawOrders.map((ord) => {
+        // Migração automática do estado antigo 'Enviado'
+        if ((ord.status as any) === 'Enviado') {
+          return { ...ord, status: 'Enviado - aguarda tracking' as const };
+        }
+        return ord;
+      });
     } catch {
       return INITIAL_ORDERS;
     }
@@ -325,6 +342,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return {
           ...DEFAULT_STORE_SETTINGS,
           ...parsed,
+          brevoSettings: {
+            ...DEFAULT_STORE_SETTINGS.brevoSettings!,
+            ...(parsed.brevoSettings || {}),
+          },
           loyaltySettings: {
             ...DEFAULT_STORE_SETTINGS.loyaltySettings,
             ...(parsed.loyaltySettings || {}),
@@ -479,13 +500,43 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
     );
 
+    // Disparar envio automático de email de confirmação via Brevo em background
+    sendOrderConfirmationEmail(newOrder, storeSettings.brevoSettings).catch((err) =>
+      console.error('[StoreContext] Erro ao enviar email de confirmação de encomenda:', err)
+    );
+
     return newOrder;
   };
 
-  const updateOrderStatus = (orderId: string, status: Order['status']) => {
+  const updateOrderStatus = (
+    orderId: string,
+    status: Order['status'],
+    trackingInfo?: { trackingNumber?: string; trackingCarrier?: string; trackingUrl?: string }
+  ) => {
+    let orderToNotify: Order | null = null;
+
     setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status } : o))
+      prev.map((o) => {
+        if (o.id === orderId) {
+          const updated: Order = {
+            ...o,
+            status,
+            ...(trackingInfo?.trackingNumber !== undefined ? { trackingNumber: trackingInfo.trackingNumber } : {}),
+            ...(trackingInfo?.trackingCarrier !== undefined ? { trackingCarrier: trackingInfo.trackingCarrier } : {}),
+            ...(trackingInfo?.trackingUrl !== undefined ? { trackingUrl: trackingInfo.trackingUrl } : {}),
+          };
+          orderToNotify = updated;
+          return updated;
+        }
+        return o;
+      })
     );
+
+    if (orderToNotify) {
+      sendOrderStatusUpdateEmail(orderToNotify, status, storeSettings.brevoSettings).catch((err) =>
+        console.error('[StoreContext] Erro ao enviar email de atualização de estado:', err)
+      );
+    }
   };
 
   const updateStoreSettings = (newSettings: Partial<StoreSettings>) => {

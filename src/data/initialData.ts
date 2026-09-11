@@ -267,7 +267,10 @@ export const INITIAL_ORDERS: Order[] = [
     ],
     totalAmount: 43.00,
     paymentMethod: 'mbway',
-    status: 'Enviado',
+    status: 'Enviado - com tracking',
+    trackingNumber: 'DA982143765PT',
+    trackingCarrier: 'CTT Expresso',
+    trackingUrl: 'https://appserver.ctt.pt/CustomerArea/PublicArea/DirectAccess/ObjectSearchResult?objectIds=DA982143765PT',
     createdAt: '2026-03-09T16:40:00Z',
   },
   {

@@ -55,6 +55,7 @@ import {
 import { useStore } from '../context/StoreContext';
 import { useUser } from '../context/UserContext';
 import { GuaranteeBadge, ProductColor, LoyaltyGoal, LoyaltyReward, Product, Order } from '../types/store';
+import { testBrevoEmail, DEFAULT_BREVO_SETTINGS } from '../services/emailService';
 
 interface AdminPortalPageProps {
   onBackToStore: () => void;
@@ -440,6 +441,102 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
   const [manualPointsAmount, setManualPointsAmount] = useState<number>(100);
   const [pointAdjustmentReason, setPointAdjustmentReason] = useState<string>('Ajuste Administrativo');
   const [newGbIcon, setNewGbIcon] = useState<'truck' | 'shield' | 'refresh' | 'check' | 'zap' | 'sparkles'>('truck');
+
+  // Tracking Modal State
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+  const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<Order | null>(null);
+  const [trackingCarrierInput, setTrackingCarrierInput] = useState('CTT Expresso');
+  const [trackingNumberInput, setTrackingNumberInput] = useState('');
+  const [trackingUrlInput, setTrackingUrlInput] = useState('');
+
+  // Brevo Settings State
+  const [brevoApiKey, setBrevoApiKey] = useState(
+    storeSettings.brevoSettings?.apiKey || DEFAULT_BREVO_SETTINGS.apiKey
+  );
+  const [brevoSenderEmail, setBrevoSenderEmail] = useState(
+    storeSettings.brevoSettings?.senderEmail || DEFAULT_BREVO_SETTINGS.senderEmail
+  );
+  const [brevoSenderName, setBrevoSenderName] = useState(
+    storeSettings.brevoSettings?.senderName || DEFAULT_BREVO_SETTINGS.senderName
+  );
+  const [brevoEnabled, setBrevoEnabled] = useState(
+    storeSettings.brevoSettings?.enabled ?? DEFAULT_BREVO_SETTINGS.enabled
+  );
+  const [testEmailRecipient, setTestEmailRecipient] = useState('vyrosocks@gmail.com');
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
+  const [testEmailStatus, setTestEmailStatus] = useState<{ success?: boolean; message?: string } | null>(null);
+
+  const generateTrackingUrl = (carrier: string, code: string): string => {
+    const clean = code.trim();
+    if (!clean) return '';
+    if (carrier.includes('CTT')) {
+      return `https://appserver.ctt.pt/CustomerArea/PublicArea/DirectAccess/ObjectSearchResult?objectIds=${clean}`;
+    }
+    if (carrier.includes('DPD')) {
+      return `https://www.dpd.com/pt/pt/receber-encomendas/pesquisa-de-envios/?parcelNumber=${clean}`;
+    }
+    if (carrier.includes('DHL')) {
+      return `https://www.dhl.com/pt-pt/home/tracking.html?tracking-id=${clean}`;
+    }
+    if (carrier.includes('GLS')) {
+      return `https://gls-group.eu/PT/pt/seguir-envio?match=${clean}`;
+    }
+    return '';
+  };
+
+  const handleOpenTrackingModal = (order: Order) => {
+    setSelectedOrderForTracking(order);
+    const carrier = order.trackingCarrier || 'CTT Expresso';
+    const number = order.trackingNumber || '';
+    setTrackingCarrierInput(carrier);
+    setTrackingNumberInput(number);
+    setTrackingUrlInput(order.trackingUrl || generateTrackingUrl(carrier, number));
+    setIsTrackingModalOpen(true);
+  };
+
+  const handleSaveTracking = () => {
+    if (!selectedOrderForTracking) return;
+    const cleanNumber = trackingNumberInput.trim();
+    const finalUrl = trackingUrlInput.trim() || generateTrackingUrl(trackingCarrierInput, cleanNumber);
+    updateOrderStatus(selectedOrderForTracking.id, 'Enviado - com tracking', {
+      trackingNumber: cleanNumber,
+      trackingCarrier: trackingCarrierInput.trim(),
+      trackingUrl: finalUrl,
+    });
+    showNotification(`Encomenda ${selectedOrderForTracking.id} atualizada com tracking (${cleanNumber}) e cliente notificado por email via Brevo!`);
+    setIsTrackingModalOpen(false);
+    setSelectedOrderForTracking(null);
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!testEmailRecipient.trim()) {
+      showNotification('Por favor, indica um email de destino para o teste.');
+      return;
+    }
+    setIsSendingTestEmail(true);
+    setTestEmailStatus(null);
+    try {
+      const res = await testBrevoEmail(
+        {
+          apiKey: brevoApiKey.trim(),
+          senderEmail: brevoSenderEmail.trim(),
+          senderName: brevoSenderName.trim(),
+          enabled: brevoEnabled,
+        },
+        testEmailRecipient.trim()
+      );
+      if (res.success) {
+        setTestEmailStatus({ success: true, message: 'Email de teste enviado com sucesso pela Brevo!' });
+        showNotification('Email de teste enviado com sucesso pela Brevo!');
+      } else {
+        setTestEmailStatus({ success: false, message: res.error || 'Erro ao enviar email' });
+      }
+    } catch (err: any) {
+      setTestEmailStatus({ success: false, message: err.message || 'Erro de conexão' });
+    } finally {
+      setIsSendingTestEmail(false);
+    }
+  };
 
   const showNotification = (msg: string) => {
     setNotification(msg);
@@ -2995,6 +3092,156 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                   </button>
                 </div>
               </div>
+
+              {/* SEÇÃO 6: INTEGRAÇÃO DE EMAILS TRANSACIONAIS (BREVO) */}
+              <div className="bg-neutral-900 text-white rounded-3xl p-6 sm:p-8 border border-neutral-800 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-6 relative z-10">
+                  <div>
+                    <div className="flex items-center gap-2 text-cyan-400 text-xs font-bold uppercase tracking-widest mb-1">
+                      <Mail className="w-4 h-4" />
+                      <span>Notificações Automáticas aos Clientes</span>
+                    </div>
+                    <h3 className="font-serif text-2xl text-white flex items-center gap-2.5">
+                      <span>Integração de Email Brevo</span>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                        {brevoEnabled ? '✓ Ativo' : 'Pausado'}
+                      </span>
+                    </h3>
+                    <p className="text-xs text-neutral-400 mt-1 max-w-2xl">
+                      Os clientes recebem automaticamente emails com a identidade visual da VYRO ao concluir compras e sempre que o estado da encomenda for alterado (incluindo código de tracking e botão de seguimento).
+                    </p>
+                  </div>
+
+                  <label className="flex items-center gap-3 cursor-pointer bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-2xl border border-white/10 transition-colors">
+                    <span className="text-xs font-semibold text-neutral-300">Envio Automático:</span>
+                    <input
+                      type="checkbox"
+                      checked={brevoEnabled}
+                      onChange={(e) => setBrevoEnabled(e.target.checked)}
+                      className="w-4 h-4 accent-cyan-400 rounded cursor-pointer"
+                    />
+                    <span className="text-xs font-bold text-cyan-400">{brevoEnabled ? 'Ligado' : 'Desligado'}</span>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 relative z-10 mb-6">
+                  <div className="md:col-span-3">
+                    <label className="text-xs font-bold uppercase text-neutral-300 tracking-wider block mb-1.5 flex items-center justify-between">
+                      <span>Chave de API v3 (Brevo API Key)</span>
+                      <span className="text-[11px] text-neutral-400 lowercase font-mono">xkeysib-...</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={brevoApiKey}
+                      onChange={(e) => setBrevoApiKey(e.target.value)}
+                      placeholder="xkeysib-xxxxxxxxxxxxxxxxxxxx"
+                      className="w-full px-4 py-3 text-xs border rounded-xl border-neutral-700 bg-neutral-950 text-white font-mono focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase text-neutral-300 tracking-wider block mb-1.5">
+                      Email de Remetente (Verificado na Brevo)
+                    </label>
+                    <input
+                      type="email"
+                      value={brevoSenderEmail}
+                      onChange={(e) => setBrevoSenderEmail(e.target.value)}
+                      placeholder="vyrosocks@gmail.com"
+                      className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-700 bg-neutral-950 text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase text-neutral-300 tracking-wider block mb-1.5">
+                      Nome do Remetente
+                    </label>
+                    <input
+                      type="text"
+                      value={brevoSenderName}
+                      onChange={(e) => setBrevoSenderName(e.target.value)}
+                      placeholder="VYRO Store"
+                      className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-700 bg-neutral-950 text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateStoreSettings({
+                          brevoSettings: {
+                            apiKey: brevoApiKey.trim(),
+                            senderEmail: brevoSenderEmail.trim(),
+                            senderName: brevoSenderName.trim(),
+                            enabled: brevoEnabled,
+                          },
+                        });
+                        showNotification('Configurações da Brevo guardadas com sucesso!');
+                      }}
+                      className="w-full py-2.5 px-5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-black font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>Guardar Configurações Brevo</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* TEST EMAIL PANEL */}
+                <div className="p-4 rounded-2xl bg-neutral-950/80 border border-neutral-800 relative z-10">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex-1">
+                      <label className="text-[11px] font-bold uppercase text-neutral-400 tracking-wider block mb-1">
+                        Testar Disparo em Tempo Real (Enviar Email de Teste)
+                      </label>
+                      <input
+                        type="email"
+                        value={testEmailRecipient}
+                        onChange={(e) => setTestEmailRecipient(e.target.value)}
+                        placeholder="Insere o teu email para teste"
+                        className="w-full max-w-md px-3 py-2 text-xs border rounded-xl border-neutral-700 bg-neutral-900 text-white focus:outline-none focus:border-cyan-400"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isSendingTestEmail}
+                      onClick={handleSendTestEmail}
+                      className="px-5 py-2.5 rounded-xl bg-white hover:bg-neutral-200 text-black font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 self-end sm:self-auto"
+                    >
+                      {isSendingTestEmail ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>A Enviar...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-3.5 h-3.5" />
+                          <span>Enviar Email de Teste</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {testEmailStatus && (
+                    <div
+                      className={`mt-3 p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                        testEmailStatus.success
+                          ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800'
+                          : 'bg-rose-950/80 text-rose-300 border border-rose-800'
+                      }`}
+                    >
+                      {testEmailStatus.success ? (
+                        <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                      ) : (
+                        <X className="w-4 h-4 text-rose-400 shrink-0" />
+                      )}
+                      <span>{testEmailStatus.message}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -4149,24 +4396,82 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                             })}
                           </td>
                           <td className="p-4 text-right">
-                            <select
-                              value={order.status}
-                              onChange={(e) => {
-                                updateOrderStatus(order.id, e.target.value as Order['status']);
-                                showNotification(`Estado da encomenda ${order.id} atualizado para "${e.target.value}".`);
-                              }}
-                              className={`text-[11px] font-bold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none transition-colors ${
-                                order.status === 'Pago'
-                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                                  : order.status === 'Em Preparação'
-                                  ? 'bg-amber-50 text-amber-800 border-amber-300'
-                                  : 'bg-blue-50 text-blue-800 border-blue-300'
-                              }`}
-                            >
-                              <option value="Pago">✓ Pago</option>
-                              <option value="Em Preparação">⏳ Em Preparação</option>
-                              <option value="Enviado">🚚 Enviado</option>
-                            </select>
+                            <div className="flex flex-col items-end gap-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <select
+                                  value={order.status}
+                                  onChange={(e) => {
+                                    const nextStatus = e.target.value as Order['status'];
+                                    if (nextStatus === 'Enviado - com tracking') {
+                                      handleOpenTrackingModal(order);
+                                    } else {
+                                      updateOrderStatus(order.id, nextStatus);
+                                      showNotification(`Estado da encomenda ${order.id} atualizado para "${nextStatus}".`);
+                                    }
+                                  }}
+                                  className={`text-[11px] font-bold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none transition-colors ${
+                                    order.status === 'Pago'
+                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                      : order.status === 'Em Preparação'
+                                      ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                      : order.status === 'Enviado - aguarda tracking'
+                                      ? 'bg-indigo-50 text-indigo-800 border-indigo-300'
+                                      : order.status === 'Enviado - com tracking'
+                                      ? 'bg-cyan-50 text-cyan-900 border-cyan-300'
+                                      : order.status === 'Concluído'
+                                      ? 'bg-neutral-800 text-white border-neutral-700'
+                                      : 'bg-rose-50 text-rose-800 border-rose-300'
+                                  }`}
+                                >
+                                  <option value="Pago">✓ Pago</option>
+                                  <option value="Em Preparação">⏳ Em Preparação</option>
+                                  <option value="Enviado - aguarda tracking">🚚 Enviado - aguarda tracking</option>
+                                  <option value="Enviado - com tracking">📦 Enviado - com tracking</option>
+                                  <option value="Concluído">🏁 Concluído</option>
+                                  <option value="Cancelado">❌ Cancelado</option>
+                                </select>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenTrackingModal(order)}
+                                  title={order.trackingNumber ? "Editar código de tracking" : "Adicionar código de tracking"}
+                                  className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                                    order.trackingNumber
+                                      ? 'bg-cyan-50 border-cyan-300 text-cyan-700 hover:bg-cyan-100'
+                                      : 'bg-neutral-100 border-neutral-200 text-neutral-600 hover:bg-neutral-200'
+                                  }`}
+                                >
+                                  <Truck className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+
+                              {order.trackingNumber ? (
+                                <div className="flex items-center gap-1.5 text-[10px]">
+                                  <span className="font-mono text-cyan-700 bg-cyan-50/80 px-2 py-0.5 rounded border border-cyan-200">
+                                    {order.trackingCarrier || 'CTT'}: {order.trackingNumber}
+                                  </span>
+                                  {order.trackingUrl && (
+                                    <a
+                                      href={order.trackingUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-neutral-400 hover:text-black"
+                                      title="Abrir link de rastreio"
+                                    >
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                  )}
+                                </div>
+                              ) : order.status === 'Enviado - aguarda tracking' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenTrackingModal(order)}
+                                  className="text-[10px] text-cyan-700 hover:text-cyan-900 font-semibold underline cursor-pointer"
+                                >
+                                  + Inserir Tracking
+                                </button>
+                              ) : null}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -4178,6 +4483,127 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
           )}
         </div>
       </main>
+
+      {/* MODAL: ADICIONAR / EDITAR TRACKING */}
+      {isTrackingModalOpen && selectedOrderForTracking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-neutral-200 animate-scale-up">
+            <div className="flex items-center justify-between pb-4 border-b border-neutral-100 mb-6">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-cyan-100 text-cyan-800 flex items-center justify-center">
+                  <Truck className="w-5 h-5 text-cyan-600" />
+                </div>
+                <div>
+                  <h3 className="font-serif text-xl font-bold text-black">
+                    Adicionar Código de Envio
+                  </h3>
+                  <p className="text-xs text-neutral-500">
+                    Encomenda #{selectedOrderForTracking.id} • {selectedOrderForTracking.customerName}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsTrackingModalOpen(false);
+                  setSelectedOrderForTracking(null);
+                }}
+                className="p-2 rounded-full hover:bg-neutral-100 text-neutral-400 hover:text-black transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold uppercase tracking-wider text-neutral-700 block mb-1.5">
+                  Transportadora / Operador Logístico
+                </label>
+                <select
+                  value={trackingCarrierInput}
+                  onChange={(e) => {
+                    const c = e.target.value;
+                    setTrackingCarrierInput(c);
+                    if (trackingNumberInput) {
+                      setTrackingUrlInput(generateTrackingUrl(c, trackingNumberInput));
+                    }
+                  }}
+                  className="w-full px-3.5 py-2.5 border rounded-xl border-neutral-300 focus:outline-none focus:border-black bg-white cursor-pointer font-medium"
+                >
+                  <option value="CTT Expresso">CTT Expresso (Portugal)</option>
+                  <option value="DPD Portugal">DPD Portugal</option>
+                  <option value="DHL Express">DHL Express</option>
+                  <option value="GLS Portugal">GLS Portugal</option>
+                  <option value="Nacex">Nacex</option>
+                  <option value="Outro Envio">Outra Transportadora</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold uppercase tracking-wider text-neutral-700 block mb-1.5 flex items-center justify-between">
+                  <span>Código de Rastreio (Tracking Number) *</span>
+                  <span className="text-[10px] text-neutral-400 font-normal lowercase">ex: DA123456789PT</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={trackingNumberInput}
+                  onChange={(e) => {
+                    const num = e.target.value;
+                    setTrackingNumberInput(num);
+                    setTrackingUrlInput(generateTrackingUrl(trackingCarrierInput, num));
+                  }}
+                  placeholder="Insere o código de tracking"
+                  className="w-full px-3.5 py-2.5 font-mono font-bold text-sm border rounded-xl border-neutral-300 focus:outline-none focus:border-cyan-500 bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold uppercase tracking-wider text-neutral-700 block mb-1.5 flex items-center justify-between">
+                  <span>Link Direto de Rastreio (Gerado Automaticamente)</span>
+                  <span className="text-[10px] text-cyan-600 font-normal">Opcional</span>
+                </label>
+                <input
+                  type="url"
+                  value={trackingUrlInput}
+                  onChange={(e) => setTrackingUrlInput(e.target.value)}
+                  placeholder="https://appserver.ctt.pt/..."
+                  className="w-full px-3.5 py-2.5 text-[11px] font-mono border rounded-xl border-neutral-300 focus:outline-none focus:border-black bg-neutral-50 text-neutral-700"
+                />
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-cyan-50/70 border border-cyan-200/80 flex items-start gap-2.5">
+                <Mail className="w-4 h-4 text-cyan-600 shrink-0 mt-0.5" />
+                <div className="text-[11px] text-cyan-900">
+                  <span className="font-bold block">Notificação Automática por Email:</span>
+                  Ao clicar em guardar, o cliente (<strong className="font-mono">{selectedOrderForTracking.customerEmail}</strong>) receberá um email com a identidade visual da VYRO contendo este código e botão direto para seguir a entrega.
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-neutral-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsTrackingModalOpen(false);
+                  setSelectedOrderForTracking(null);
+                }}
+                className="px-4 py-2.5 rounded-xl border border-neutral-300 text-neutral-700 font-semibold text-xs hover:bg-neutral-100 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={!trackingNumberInput.trim()}
+                onClick={handleSaveTracking}
+                className="px-6 py-2.5 rounded-xl bg-black text-white hover:bg-neutral-800 font-bold text-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-40 shadow-md"
+              >
+                <Check className="w-4 h-4 text-cyan-400" />
+                <span>Guardar e Notificar Cliente</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

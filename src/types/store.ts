@@ -61,6 +61,13 @@ export interface AutomaticCouponSettings {
   firstOrderCouponCode?: string;
 }
 
+export interface BrevoSettings {
+  apiKey: string;
+  senderEmail: string;
+  senderName: string;
+  enabled: boolean;
+}
+
 export interface StoreSettings {
   freeShippingThreshold: number;
   shippingCost: number;
@@ -72,6 +79,7 @@ export interface StoreSettings {
   loyaltySettings: LoyaltySettings;
   categoryBanner?: CategoryBannerSettings;
   automaticCoupons?: AutomaticCouponSettings;
+  brevoSettings?: BrevoSettings;
 }
 
 export interface OrderItem {
@@ -83,6 +91,14 @@ export interface OrderItem {
   price: number;
 }
 
+export type OrderStatus =
+  | 'Pago'
+  | 'Em Preparação'
+  | 'Enviado - aguarda tracking'
+  | 'Enviado - com tracking'
+  | 'Concluído'
+  | 'Cancelado';
+
 export interface Order {
   id: string;
   customerName: string;
@@ -91,7 +107,10 @@ export interface Order {
   items: OrderItem[];
   totalAmount: number;
   paymentMethod: 'mbway' | 'multibanco' | 'card';
-  status: 'Pago' | 'Em Preparação' | 'Enviado';
+  status: OrderStatus;
+  trackingNumber?: string;
+  trackingCarrier?: string;
+  trackingUrl?: string;
   createdAt: string;
 }
 

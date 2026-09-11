@@ -46,6 +46,7 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
   const { addItem, setIsCartOpen } = useCart();
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'favorites' | 'profile' | 'rewards' | 'coupons'>(initialTab);
   const [copiedVoucherCode, setCopiedVoucherCode] = useState<string | null>(null);
+  const [copiedTrackingId, setCopiedTrackingId] = useState<string | null>(null);
   const [rewardNotice, setRewardNotice] = useState<string | null>(null);
 
   // Form states for profile editing
@@ -75,6 +76,53 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
       </div>
     );
   }
+
+  const getOrderStatusBadge = (status: string) => {
+    switch (status) {
+      case 'Pago':
+        return {
+          bg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+          icon: <CheckCircle2 className="w-3 h-3 text-emerald-600" />,
+          label: '✓ Pago',
+        };
+      case 'Em Preparação':
+        return {
+          bg: 'bg-amber-100 text-amber-800 border-amber-200',
+          icon: <Clock className="w-3 h-3 text-amber-600" />,
+          label: '⏳ Em Preparação',
+        };
+      case 'Enviado - aguarda tracking':
+        return {
+          bg: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+          icon: <Truck className="w-3 h-3 text-indigo-600" />,
+          label: '🚚 Enviado - aguarda tracking',
+        };
+      case 'Enviado - com tracking':
+        return {
+          bg: 'bg-cyan-100 text-cyan-900 border-cyan-300 font-bold shadow-2xs',
+          icon: <Truck className="w-3 h-3 text-cyan-700" />,
+          label: '📦 Enviado - com tracking',
+        };
+      case 'Concluído':
+        return {
+          bg: 'bg-neutral-800 text-white border-neutral-700',
+          icon: <CheckCircle2 className="w-3 h-3 text-cyan-400" />,
+          label: '🏁 Concluído',
+        };
+      case 'Cancelado':
+        return {
+          bg: 'bg-rose-100 text-rose-800 border-rose-200',
+          icon: <CheckCircle2 className="w-3 h-3 text-rose-600" />,
+          label: '❌ Cancelado',
+        };
+      default:
+        return {
+          bg: 'bg-neutral-100 text-neutral-800 border-neutral-200',
+          icon: <CheckCircle2 className="w-3 h-3 text-neutral-600" />,
+          label: status,
+        };
+    }
+  };
 
   // Filter orders made by this user (by email or customer name)
   const userOrders = orders.filter(
@@ -317,9 +365,15 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-xs font-bold text-black">{order.id}</span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800">
-                            {order.status}
-                          </span>
+                          {(() => {
+                            const badge = getOrderStatusBadge(order.status);
+                            return (
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1 border ${badge.bg}`}>
+                                {badge.icon}
+                                <span>{order.status}</span>
+                              </span>
+                            );
+                          })()}
                         </div>
                         <p className="text-xs text-neutral-500 mt-1">
                           {new Date(order.createdAt).toLocaleDateString('pt-PT')} • {order.items.length} {order.items.length === 1 ? 'artigo' : 'artigos'}
@@ -420,10 +474,15 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
                       <div>
                         <div className="flex items-center gap-3">
                           <span className="font-mono text-sm font-bold text-black">{order.id}</span>
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-100 text-cyan-800 flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3 text-cyan-600" />
-                            {order.status}
-                          </span>
+                          {(() => {
+                            const badge = getOrderStatusBadge(order.status);
+                            return (
+                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1.5 border ${badge.bg}`}>
+                                {badge.icon}
+                                <span>{order.status}</span>
+                              </span>
+                            );
+                          })()}
                         </div>
                         <p className="text-xs text-neutral-500 mt-1">
                           Data: {new Date(order.createdAt).toLocaleDateString('pt-PT', {
@@ -446,6 +505,50 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
                         </span>
                       </div>
                     </div>
+
+                    {/* Tracking Box if trackingNumber is present */}
+                    {order.trackingNumber && (
+                      <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-cyan-500/10 via-cyan-500/5 to-blue-500/10 border border-cyan-300/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-cyan-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <Truck className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-800 bg-cyan-100 px-2 py-0.5 rounded-full">
+                                {order.trackingCarrier || 'CTT Expresso'}
+                              </span>
+                              <span className="text-xs text-neutral-500">Código de Envio:</span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="font-mono font-bold text-black text-sm">{order.trackingNumber}</span>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(order.trackingNumber || '');
+                                  setCopiedTrackingId(order.id);
+                                  setTimeout(() => setCopiedTrackingId(null), 2000);
+                                }}
+                                className="text-[11px] text-cyan-700 hover:text-cyan-900 font-semibold underline cursor-pointer"
+                              >
+                                {copiedTrackingId === order.id ? '✓ Copiado!' : 'Copiar'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {order.trackingUrl && (
+                          <a
+                            href={order.trackingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-black text-white text-xs font-bold hover:bg-neutral-800 transition-colors shadow-xs shrink-0 cursor-pointer"
+                          >
+                            <span>Acompanhar Entrega</span>
+                            <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
+                          </a>
+                        )}
+                      </div>
+                    )}
 
                     {/* Order items */}
                     <div className="pt-4 divide-y divide-neutral-100">

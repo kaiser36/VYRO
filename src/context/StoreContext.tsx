@@ -19,6 +19,7 @@ import {
   DEFAULT_BREVO_SETTINGS,
   sendOrderConfirmationEmail,
   sendOrderStatusUpdateEmail,
+  sendAdminNewOrderAlertEmail,
 } from '../services/emailService';
 import { DEFAULT_EASYPAY_SETTINGS } from '../services/easypayService';
 
@@ -533,9 +534,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
     );
 
-    // Disparar envio automático de email de confirmação via Brevo em background
+    // Disparar envio automático de email de confirmação ao cliente via Brevo em background
     sendOrderConfirmationEmail(newOrder, storeSettings.brevoSettings).catch((err) =>
-      console.error('[StoreContext] Erro ao enviar email de confirmação de encomenda:', err)
+      console.error('[StoreContext] Erro ao enviar email de confirmação ao cliente:', err)
+    );
+
+    // Disparar alerta imediato de nova encomenda para o administrador da loja
+    sendAdminNewOrderAlertEmail(newOrder, storeSettings.brevoSettings).catch((err) =>
+      console.error('[StoreContext] Erro ao enviar email de alerta ao administrador:', err)
     );
 
     return newOrder;

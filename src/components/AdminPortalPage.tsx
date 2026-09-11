@@ -470,10 +470,18 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
   const [brevoSenderName, setBrevoSenderName] = useState(
     storeSettings.brevoSettings?.senderName || DEFAULT_BREVO_SETTINGS.senderName
   );
+  const [brevoAdminAlertEmail, setBrevoAdminAlertEmail] = useState(
+    storeSettings.brevoSettings?.adminAlertEmail || DEFAULT_BREVO_SETTINGS.adminAlertEmail || 'vyrosocks@gmail.com'
+  );
+  const [brevoNotifyAdmin, setBrevoNotifyAdmin] = useState(
+    storeSettings.brevoSettings?.notifyAdminOnNewOrder ?? DEFAULT_BREVO_SETTINGS.notifyAdminOnNewOrder ?? true
+  );
   const [brevoEnabled, setBrevoEnabled] = useState(
     storeSettings.brevoSettings?.enabled ?? DEFAULT_BREVO_SETTINGS.enabled
   );
-  const [testEmailRecipient, setTestEmailRecipient] = useState('vyrosocks@gmail.com');
+  const [testEmailRecipient, setTestEmailRecipient] = useState(
+    storeSettings.brevoSettings?.adminAlertEmail || 'vyrosocks@gmail.com'
+  );
   const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
   const [testEmailStatus, setTestEmailStatus] = useState<{ success?: boolean; message?: string } | null>(null);
 
@@ -3324,7 +3332,34 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                     />
                   </div>
 
-                  <div className="flex items-end">
+                  <div>
+                    <label className="text-xs font-bold uppercase text-neutral-300 tracking-wider block mb-1.5 flex items-center justify-between">
+                      <span>Email para Alertas de Novas Encomendas</span>
+                      <span className="text-[10px] text-cyan-400 font-semibold">Admin</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={brevoAdminAlertEmail}
+                      onChange={(e) => setBrevoAdminAlertEmail(e.target.value)}
+                      placeholder="vyrosocks@gmail.com"
+                      className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-700 bg-neutral-950 text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 flex items-center gap-3 p-3 rounded-xl bg-neutral-950 border border-neutral-800">
+                    <input
+                      type="checkbox"
+                      id="notifyAdminCheck"
+                      checked={brevoNotifyAdmin}
+                      onChange={(e) => setBrevoNotifyAdmin(e.target.checked)}
+                      className="w-4 h-4 accent-cyan-400 rounded cursor-pointer"
+                    />
+                    <label htmlFor="notifyAdminCheck" className="text-xs text-neutral-300 cursor-pointer">
+                      <strong className="text-white">Alerta imediato por email:</strong> Notificar o administrador sempre que uma nova encomenda for recebida na loja.
+                    </label>
+                  </div>
+
+                  <div className="flex items-end md:col-span-1">
                     <button
                       type="button"
                       onClick={() => {
@@ -3333,6 +3368,8 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                             apiKey: brevoApiKey.trim(),
                             senderEmail: brevoSenderEmail.trim(),
                             senderName: brevoSenderName.trim(),
+                            adminAlertEmail: brevoAdminAlertEmail.trim(),
+                            notifyAdminOnNewOrder: brevoNotifyAdmin,
                             enabled: brevoEnabled,
                           },
                         });

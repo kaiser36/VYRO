@@ -5,6 +5,8 @@ export const DEFAULT_BREVO_SETTINGS: BrevoSettings = {
   senderEmail: import.meta.env.VITE_BREVO_SENDER_EMAIL || 'vyrosocks@gmail.com',
   senderName: import.meta.env.VITE_BREVO_SENDER_NAME || 'VYRO Store',
   enabled: true,
+  adminAlertEmail: import.meta.env.VITE_BREVO_ADMIN_EMAIL || 'vyrosocks@gmail.com',
+  notifyAdminOnNewOrder: true,
 };
 
 interface SendEmailParams {
@@ -334,6 +336,105 @@ export async function sendOrderStatusUpdateEmail(
 }
 
 /**
+ * Envia email de alerta ao administrador da VYRO quando uma nova encomenda é realizada
+ */
+export async function sendAdminNewOrderAlertEmail(order: Order, settings?: BrevoSettings) {
+  if (settings && !settings.enabled) return;
+  if (settings && settings.notifyAdminOnNewOrder === false) return;
+
+  const adminEmail = settings?.adminAlertEmail || settings?.senderEmail || 'vyrosocks@gmail.com';
+  if (!adminEmail) return;
+
+  const itemsHtml = order.items
+    .map(
+      (item) => `
+      <div style="padding: 10px 0; border-bottom: 1px solid #282f3c; display: table; width: 100%;">
+        <div style="display: table-cell; vertical-align: middle; color: #f3f4f6; font-size: 13px;">
+          <strong style="color: #ffffff;">${item.productName}</strong><br>
+          <span style="color: #9ca3af; font-size: 11px;">Tamanho: <strong>${item.size}</strong> • Cor: <strong>${item.colorName}</strong> • Quantidade: <strong>${item.quantity}</strong></span>
+        </div>
+        <div style="display: table-cell; vertical-align: middle; text-align: right; color: #00f2fe; font-weight: bold; font-size: 13px;">
+          €${(item.price * item.quantity).toFixed(2)}
+        </div>
+      </div>
+    `
+    )
+    .join('');
+
+  let paymentDetailsHtml = '';
+  if (order.paymentMethod === 'mbway' && order.mbwayPhone) {
+    paymentDetailsHtml = `<div>Nº Telemóvel MB WAY: <strong style="color: #00f2fe;">${order.mbwayPhone}</strong></div>`;
+  } else if (order.paymentMethod === 'multibanco' && order.multibancoReference) {
+    paymentDetailsHtml = `<div>Entidade: <strong style="color: #ffffff;">${order.multibancoEntity || '21234'}</strong> | Ref: <strong style="color: #00f2fe;">${order.multibancoReference}</strong></div>`;
+  }
+
+  const contentHtml = `
+    <h1 style="color: #00f2fe;">Nova Encomenda Recebida! 🛍️</h1>
+    <p style="font-size: 14px; color: #f3f4f6;">
+      Entrou uma nova encomenda na loja <strong>VYRO</strong> no valor total de <strong style="color: #00f2fe;">€${order.totalAmount.toFixed(2)}</strong>.
+    </p>
+    
+    <div class="order-box" style="margin-bottom: 16px;">
+      <h3 style="margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #00f2fe;">
+        Dados do Cliente
+      </h3>
+      <div style="font-size: 12px; color: #d1d5db; line-height: 1.7;">
+        <div>Nome: <strong style="color: #ffffff;">${order.customerName}</strong></div>
+        <div>Email: <a href="mailto:${order.customerEmail}" style="color: #00f2fe; text-decoration: none;">${order.customerEmail}</a></div>
+        <div>Localidade: <strong style="color: #ffffff;">${order.customerCity || 'Portugal'}</strong></div>
+        <div>Método de Pagamento: <strong style="color: #10b981; text-transform: uppercase;">${order.paymentMethod}</strong></div>
+        ${paymentDetailsHtml}
+        <div>Estado Inicial: <strong style="color: #ffffff;">${order.status}</strong></div>
+      </div>
+    </div>
+
+    <div class="order-box">
+      <div style="display: table; width: 100%; margin-bottom: 12px; border-bottom: 1px solid #282f3c; padding-bottom: 8px;">
+        <div style="display: table-cell; color: #9ca3af; font-size: 12px;">
+          Nº Encomenda: <strong style="color: #ffffff;">${order.id}</strong>
+        </div>
+        <div style="display: table-cell; text-align: right; color: #9ca3af; font-size: 12px;">
+          Data: <span style="color: #ffffff;">${new Date(order.createdAt).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+      </div>
+
+      <div style="margin: 10px 0;">
+        ${itemsHtml}
+      </div>
+
+      <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid #374151; display: table; width: 100%;">
+        <div style="display: table-cell; font-size: 14px; font-weight: bold; color: #ffffff;">
+          Total da Encomenda:
+        </div>
+        <div style="display: table-cell; text-align: right; font-size: 17px; font-weight: 800; color: #00f2fe;">
+          €${order.totalAmount.toFixed(2)}
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size: 12px; color: #9ca3af; margin-top: 20px;">
+      Acede ao <strong>Backoffice da VYRO</strong> para separar os artigos, introduzir o código de seguimento e atualizar o estado do envio.
+    </p>
+  `;
+
+  const html = wrapEmailTemplate(
+    `🚨 Nova Encomenda #${order.id} (€${order.totalAmount.toFixed(2)}) - VYRO Store`,
+    `Recebeste uma nova encomenda de ${order.customerName} no valor de €${order.totalAmount.toFixed(2)}`,
+    contentHtml
+  );
+
+  return sendBrevoEmail({
+    apiKey: settings?.apiKey,
+    senderEmail: settings?.senderEmail,
+    senderName: settings?.senderName,
+    toEmail: adminEmail,
+    toName: 'Administrador VYRO',
+    subject: `🚨 [Nova Encomenda] #${order.id} (€${order.totalAmount.toFixed(2)}) - ${order.customerName}`,
+    htmlContent: html,
+  });
+}
+
+/**
  * Envia email de teste para verificar a conectividade com a Brevo
  */
 export async function testBrevoEmail(settings: BrevoSettings, testRecipientEmail: string) {
@@ -346,9 +447,10 @@ export async function testBrevoEmail(settings: BrevoSettings, testRecipientEmail
       <div class="order-box">
         <p style="margin: 0; color: #10b981; font-weight: bold;">✓ Chave de API v3 validada com sucesso</p>
         <p style="margin: 6px 0 0 0; color: #9ca3af; font-size: 12px;">Remetente Configurado: <strong>${settings.senderName}</strong> &lt;${settings.senderEmail}&gt;</p>
+        <p style="margin: 4px 0 0 0; color: #9ca3af; font-size: 12px;">Email Alertas de Encomendas: <strong>${settings.adminAlertEmail || settings.senderEmail}</strong></p>
       </div>
       <p style="font-size: 13px; color: #9ca3af;">
-        A partir de agora, os teus clientes receberão emails automáticos no ato da compra e sempre que atualizares o estado de qualquer encomenda.
+        A partir de agora, os teus clientes recebem emails automáticos de confirmação e atualizações de tracking, e tu como administrador recebes um alerta imediato sempre que entrar uma nova encomenda na loja!
       </p>
     `
   );

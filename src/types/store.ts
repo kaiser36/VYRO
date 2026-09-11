@@ -66,6 +66,8 @@ export interface BrevoSettings {
   senderEmail: string;
   senderName: string;
   enabled: boolean;
+  adminAlertEmail?: string;
+  notifyAdminOnNewOrder?: boolean;
 }
 
 export interface EasypaySettings {

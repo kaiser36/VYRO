@@ -117,18 +117,24 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState(false);
 
-  // Dashboard active tab
+  // Dashboard active tab (Adicionar Nova Meia tab removed, starts on list-products)
   const [activeTab, setActiveTab] = useState<
-    'add-product' | 'list-products' | 'categories' | 'settings' | 'loyalty' | 'stats'
-  >('add-product');
+    'list-products' | 'categories' | 'settings' | 'loyalty' | 'stats'
+  >('list-products');
   const [notification, setNotification] = useState<string | null>(null);
 
-  // New Product Form State
+  // Catalog View Mode ('list' | 'create' | 'edit')
+  const [catalogMode, setCatalogMode] = useState<'list' | 'create' | 'edit'>('list');
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  // Unified Product Form State (for both create and edit)
   const [prodName, setProdName] = useState('');
   const [prodTagline, setProdTagline] = useState('');
   const [prodCategory, setProdCategory] = useState(categories[0]?.id || '');
   const [prodPrice, setProdPrice] = useState('');
   const [prodOriginalPrice, setProdOriginalPrice] = useState('');
+  const [prodStock, setProdStock] = useState('50');
+  const [prodInStock, setProdInStock] = useState(true);
   const [prodDescription, setProdDescription] = useState('');
   const [prodFeatures, setProdFeatures] = useState('Costura plana Seamless\nMalha de fluxo de ar 3D\nCompressão plantar 360°');
   const [prodMaterials, setProdMaterials] = useState('70% Poliamida Q-Skin, 20% CoolMax, 10% Elastano');
@@ -145,84 +151,105 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     }
   }, [storeSettings.availableColors]);
 
-  // Quick Edit Sock State
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [editProdName, setEditProdName] = useState('');
-  const [editProdTagline, setEditProdTagline] = useState('');
-  const [editProdCategory, setEditProdCategory] = useState('');
-  const [editProdPrice, setEditProdPrice] = useState('');
-  const [editProdOriginalPrice, setEditProdOriginalPrice] = useState('');
-  const [editProdDescription, setEditProdDescription] = useState('');
-  const [editProdFeatures, setEditProdFeatures] = useState('');
-  const [editProdMaterials, setEditProdMaterials] = useState('');
-  const [editProdBadge, setEditProdBadge] = useState('');
-  const [editProdSizes, setEditProdSizes] = useState<string[]>([]);
-  const [editProdColors, setEditProdColors] = useState<ProductColor[]>([]);
-  const [editProdImageUrl, setEditProdImageUrl] = useState('');
-  const [editProdInStock, setEditProdInStock] = useState(true);
-  const [editProdIsFeatured, setEditProdIsFeatured] = useState(false);
+  const handleStartCreateProduct = () => {
+    setEditingProduct(null);
+    setProdName('');
+    setProdTagline('');
+    setProdCategory(categories[0]?.id || '');
+    setProdPrice('');
+    setProdOriginalPrice('');
+    setProdStock('50');
+    setProdInStock(true);
+    setProdDescription('Meia técnica desenhada para máxima respirabilidade e apoio plantar nas condições mais exigentes.');
+    setProdFeatures('Costura plana Seamless\nMalha de fluxo de ar 3D\nCompressão plantar 360°');
+    setProdMaterials('70% Poliamida Q-Skin, 20% CoolMax, 10% Elastano');
+    setProdBadge('NOVO');
+    setProdSizes(storeSettings.availableSizes.slice(0, 3));
+    setProdColors(storeSettings.availableColors.slice(0, 3));
+    setProdImageUrl(PRESET_SOCKS_IMAGES[0]);
+    setProdIsFeatured(false);
+    setCatalogMode('create');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleStartEditProduct = (p: Product) => {
     setEditingProduct(p);
-    setEditProdName(p.name);
-    setEditProdTagline(p.tagline || '');
-    setEditProdCategory(p.categoryId);
-    setEditProdPrice(p.price.toString());
-    setEditProdOriginalPrice(p.originalPrice ? p.originalPrice.toString() : '');
-    setEditProdDescription(p.description || '');
-    setEditProdFeatures((p.features || []).join('\n'));
-    setEditProdMaterials(p.materials || '');
-    setEditProdBadge(p.badge || '');
-    setEditProdSizes(p.sizes || ['39-42']);
-    setEditProdColors(p.colors || []);
-    setEditProdImageUrl(p.images[0] || PRESET_SOCKS_IMAGES[0]);
-    setEditProdInStock(p.inStock);
-    setEditProdIsFeatured(!!p.isFeatured);
+    setProdName(p.name);
+    setProdTagline(p.tagline || '');
+    setProdCategory(p.categoryId);
+    setProdPrice(p.price.toString());
+    setProdOriginalPrice(p.originalPrice ? p.originalPrice.toString() : '');
+    const currentStock = p.stock !== undefined ? p.stock : (p.inStock ? 30 : 0);
+    setProdStock(currentStock.toString());
+    setProdInStock(p.inStock && currentStock > 0);
+    setProdDescription(p.description || '');
+    setProdFeatures((p.features || []).join('\n'));
+    setProdMaterials(p.materials || '');
+    setProdBadge(p.badge || '');
+    setProdSizes(p.sizes || ['39-42']);
+    setProdColors(p.colors || []);
+    setProdImageUrl(p.images[0] || PRESET_SOCKS_IMAGES[0]);
+    setProdIsFeatured(!!p.isFeatured);
+    setCatalogMode('edit');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleCloseEditProduct = () => {
+  const handleCancelProductForm = () => {
+    setCatalogMode('list');
     setEditingProduct(null);
   };
 
-  const toggleEditProdSize = (sz: string) => {
-    setEditProdSizes((prev) =>
-      prev.includes(sz) ? prev.filter((s) => s !== sz) : [...prev, sz]
-    );
-  };
-
-  const toggleEditProdColor = (col: ProductColor) => {
-    setEditProdColors((prev) => {
-      const exists = prev.some((c) => c.name === col.name);
-      return exists ? prev.filter((c) => c.name !== col.name) : [...prev, col];
-    });
-  };
-
-  const handleSaveEditProduct = (e: React.FormEvent) => {
+  const handleSaveProductForm = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingProduct) return;
-    if (!editProdName.trim() || !editProdPrice) return;
+    if (!prodName.trim() || !prodPrice) return;
 
-    const selectedCatObj = categories.find((c) => c.id === editProdCategory) || categories[0];
+    const selectedCatObj = categories.find((c) => c.id === prodCategory) || categories[0];
+    const stockQty = Math.max(0, parseInt(prodStock || '0', 10));
+    const isInStock = stockQty > 0 && prodInStock;
 
-    updateProduct(editingProduct.id, {
-      name: editProdName.trim(),
-      tagline: editProdTagline.trim() || 'Alta performance e conforto biomecânico',
-      price: parseFloat(editProdPrice),
-      originalPrice: editProdOriginalPrice ? parseFloat(editProdOriginalPrice) : undefined,
-      categoryId: selectedCatObj.id,
-      categoryName: selectedCatObj.name,
-      description: editProdDescription.trim(),
-      features: editProdFeatures.split('\n').filter((f) => f.trim().length > 0),
-      materials: editProdMaterials.trim() || undefined,
-      sizes: editProdSizes.length > 0 ? editProdSizes : ['39-42'],
-      colors: editProdColors.length > 0 ? editProdColors : storeSettings.availableColors.slice(0, 3),
-      images: [editProdImageUrl, ...(editingProduct.images.slice(1))],
-      badge: editProdBadge.trim() || undefined,
-      inStock: editProdInStock,
-      isFeatured: editProdIsFeatured,
-    });
+    if (catalogMode === 'edit' && editingProduct) {
+      updateProduct(editingProduct.id, {
+        name: prodName.trim(),
+        tagline: prodTagline.trim() || 'Alta performance e conforto biomecânico',
+        price: parseFloat(prodPrice),
+        originalPrice: prodOriginalPrice ? parseFloat(prodOriginalPrice) : undefined,
+        stock: stockQty,
+        inStock: isInStock,
+        categoryId: selectedCatObj.id,
+        categoryName: selectedCatObj.name,
+        description: prodDescription.trim(),
+        features: prodFeatures.split('\n').filter((f) => f.trim().length > 0),
+        materials: prodMaterials.trim() || undefined,
+        sizes: prodSizes.length > 0 ? prodSizes : ['39-42'],
+        colors: prodColors.length > 0 ? prodColors : storeSettings.availableColors.slice(0, 3),
+        images: [prodImageUrl, ...(editingProduct.images.slice(1))],
+        badge: prodBadge.trim() || undefined,
+        isFeatured: prodIsFeatured,
+      });
+      showNotification(`Meia "${prodName}" atualizada com sucesso!`);
+    } else {
+      addProduct({
+        name: prodName.trim(),
+        tagline: prodTagline.trim() || 'Alta performance e conforto biomecânico',
+        price: parseFloat(prodPrice),
+        originalPrice: prodOriginalPrice ? parseFloat(prodOriginalPrice) : undefined,
+        stock: stockQty,
+        inStock: isInStock,
+        categoryId: selectedCatObj.id,
+        categoryName: selectedCatObj.name,
+        description: prodDescription.trim() || 'Meia técnica desenhada para máxima respirabilidade e apoio plantar nas condições mais exigentes.',
+        features: prodFeatures.split('\n').filter((f) => f.trim().length > 0),
+        materials: prodMaterials,
+        sizes: prodSizes.length > 0 ? prodSizes : ['39-42'],
+        colors: prodColors.length > 0 ? prodColors : storeSettings.availableColors.slice(0, 3),
+        images: [prodImageUrl],
+        badge: prodBadge || undefined,
+        isFeatured: prodIsFeatured,
+      });
+      showNotification(`Meia "${prodName}" adicionada com sucesso ao catálogo!`);
+    }
 
-    showNotification(`Meia "${editProdName}" atualizada com sucesso!`);
+    setCatalogMode('list');
     setEditingProduct(null);
   };
 
@@ -502,39 +529,6 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     } else {
       setLoginError(true);
     }
-  };
-
-  const handleCreateProduct = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!prodName || !prodPrice) return;
-
-    const selectedCatObj = categories.find((c) => c.id === prodCategory) || categories[0];
-
-    addProduct({
-      name: prodName,
-      tagline: prodTagline || 'Alta performance e conforto biomecânico',
-      price: parseFloat(prodPrice),
-      originalPrice: prodOriginalPrice ? parseFloat(prodOriginalPrice) : undefined,
-      categoryId: selectedCatObj.id,
-      categoryName: selectedCatObj.name,
-      description: prodDescription || 'Meia técnica desenhada para máxima respirabilidade e apoio plantar nas condições mais exigentes.',
-      features: prodFeatures.split('\n').filter((f) => f.trim().length > 0),
-      materials: prodMaterials,
-      sizes: prodSizes.length > 0 ? prodSizes : ['39-42'],
-      colors: prodColors.length > 0 ? prodColors : storeSettings.availableColors.slice(0, 3),
-      images: [prodImageUrl],
-      badge: prodBadge || undefined,
-      inStock: true,
-      isFeatured: prodIsFeatured,
-    });
-
-    showNotification(`Meia "${prodName}" adicionada com sucesso ao catálogo!`);
-    setProdName('');
-    setProdTagline('');
-    setProdPrice('');
-    setProdOriginalPrice('');
-    setProdDescription('');
-    setProdIsFeatured(false);
   };
 
   const handleStartEditCategory = (cat: { id: string; name: string; slug: string; description: string }) => {
@@ -843,19 +837,10 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
         {/* Tab Navigation Pills */}
         <div className="flex flex-wrap items-center gap-2 mb-6 bg-white p-2 rounded-2xl border border-neutral-200 shadow-sm">
           <button
-            onClick={() => setActiveTab('add-product')}
-            className={`flex items-center gap-2 py-2.5 px-5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-              activeTab === 'add-product'
-                ? 'bg-black text-white shadow-md'
-                : 'text-neutral-600 hover:text-black hover:bg-neutral-100'
-            }`}
-          >
-            <Plus className="w-4 h-4 text-cyan-400" />
-            <span>Adicionar Nova Meia</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('list-products')}
+            onClick={() => {
+              setActiveTab('list-products');
+              setCatalogMode('list');
+            }}
             className={`flex items-center gap-2 py-2.5 px-5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
               activeTab === 'list-products'
                 ? 'bg-black text-white shadow-md'
@@ -927,335 +912,413 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
 
         {/* Page Content Cards */}
         <div className="bg-white rounded-3xl border border-neutral-200/90 shadow-sm p-6 sm:p-10 flex-1">
-          {/* TAB 1: ADD PRODUCT */}
-          {activeTab === 'add-product' && (
-            <div className="max-w-4xl">
-              <div className="border-b border-neutral-100 pb-6 mb-8">
-                <h2 className="font-serif text-3xl sm:text-4xl text-black">
-                  Carregar Novo Produto (Meia Técnica)
-                </h2>
-                <p className="text-xs text-[#6F6F6F] mt-1.5 font-sans">
-                  Preencha os dados da meia utilizando as cores, tamanhos e badges configurados.
-                </p>
-              </div>
-
-              <form onSubmit={handleCreateProduct} className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div>
-                    <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
-                      Nome da Meia *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex: VYRO Aero Carbon Pro"
-                      value={prodName}
-                      onChange={(e) => setProdName(e.target.value)}
-                      className="w-full px-4 py-3 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
-                      Subtítulo / Tagline
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Máxima compressão para ciclismo de estrada"
-                      value={prodTagline}
-                      onChange={(e) => setProdTagline(e.target.value)}
-                      className="w-full px-4 py-3 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
-                      Categoria *
-                    </label>
-                    <select
-                      value={prodCategory}
-                      onChange={(e) => setProdCategory(e.target.value)}
-                      className="w-full px-4 py-3 text-xs border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black cursor-pointer"
-                    >
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
-                      Badge de Destaque
-                    </label>
-                    <div className="flex flex-wrap gap-1.5 mb-2">
-                      {storeSettings.availableBadges.map((b) => (
-                        <button
-                          type="button"
-                          key={b}
-                          onClick={() => setProdBadge(b)}
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                            prodBadge === b
-                              ? 'bg-black text-white shadow-sm'
-                              : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-                          }`}
-                        >
-                          {b}
-                        </button>
-                      ))}
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Ou escreva uma badge personalizada..."
-                      value={prodBadge}
-                      onChange={(e) => setProdBadge(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
-                      Preço de Venda (€) *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.10"
-                      required
-                      placeholder="Ex: 19.90"
-                      value={prodPrice}
-                      onChange={(e) => setProdPrice(e.target.value)}
-                      className="w-full px-4 py-3 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
-                      Preço Original / Antes (€) (Opcional)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.10"
-                      placeholder="Ex: 24.90"
-                      value={prodOriginalPrice}
-                      onChange={(e) => setProdOriginalPrice(e.target.value)}
-                      className="w-full px-4 py-3 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
-                    />
-                  </div>
-                </div>
-
-                {/* Sizes Selection from Configured Sizes */}
-                <div className="pt-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider">
-                      Tamanhos Disponíveis
-                    </label>
+          {/* TAB: LIST PRODUCTS / CREATE OR EDIT SOCKS (IN-PAGE FULL VIEW) */}
+          {activeTab === 'list-products' && (
+            <div>
+              {catalogMode !== 'list' ? (
+                /* IN-PAGE CREATE OR EDIT SOCK FORM (NOT A MODAL) */
+                <div className="max-w-4xl space-y-6 animate-fade-in">
+                  <div className="flex items-center justify-between border-b border-neutral-100 pb-5">
                     <button
                       type="button"
-                      onClick={() => setActiveTab('settings')}
-                      className="text-[11px] text-cyan-600 hover:underline cursor-pointer"
+                      onClick={handleCancelProductForm}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-bold transition-all cursor-pointer shadow-2xs"
                     >
-                      + Configurar Tamanhos da Loja
+                      <ArrowLeft className="w-4 h-4" />
+                      <span>Voltar ao Catálogo</span>
                     </button>
+
+                    <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-cyan-50 text-cyan-900 border border-cyan-200">
+                      {catalogMode === 'edit' ? 'Modo de Edição de Meia' : 'Novo Modelo Técnico'}
+                    </span>
                   </div>
-                  <div className="flex flex-wrap gap-2.5">
-                    {storeSettings.availableSizes.map((sz) => (
+
+                  <div>
+                    <h2 className="font-serif text-3xl sm:text-4xl text-black">
+                      {catalogMode === 'edit'
+                        ? `Editar Meia: ${editingProduct?.name || prodName}`
+                        : 'Carregar Novo Produto (Meia Técnica)'}
+                    </h2>
+                    <p className="text-xs text-[#6F6F6F] mt-1.5 font-sans">
+                      {catalogMode === 'edit'
+                        ? 'Atualize os dados técnicos, quantidade de stock, preços e imagens deste modelo.'
+                        : 'Preencha os dados da meia técnica utilizando as cores, tamanhos, stock e badges configurados.'}
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleSaveProductForm} className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div>
+                        <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
+                          Nome da Meia *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ex: VYRO Aero Carbon Pro"
+                          value={prodName}
+                          onChange={(e) => setProdName(e.target.value)}
+                          className="w-full px-4 py-3 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black font-semibold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
+                          Subtítulo / Tagline
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Máxima compressão para ciclismo de estrada"
+                          value={prodTagline}
+                          onChange={(e) => setProdTagline(e.target.value)}
+                          className="w-full px-4 py-3 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
+                          Categoria *
+                        </label>
+                        <select
+                          value={prodCategory}
+                          onChange={(e) => setProdCategory(e.target.value)}
+                          className="w-full px-4 py-3 text-xs border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black cursor-pointer font-medium"
+                        >
+                          {categories.map((cat) => (
+                            <option key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
+                          Badge de Destaque
+                        </label>
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {storeSettings.availableBadges.map((b) => (
+                            <button
+                              type="button"
+                              key={b}
+                              onClick={() => setProdBadge(prodBadge === b ? '' : b)}
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                                prodBadge === b
+                                  ? 'bg-black text-white shadow-sm'
+                                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                              }`}
+                            >
+                              {b}
+                            </button>
+                          ))}
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Ou escreva uma badge personalizada..."
+                          value={prodBadge}
+                          onChange={(e) => setProdBadge(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
+                          Preço de Venda (€) *
+                        </label>
+                        <input
+                          type="number"
+                          step="0.10"
+                          required
+                          placeholder="Ex: 19.90"
+                          value={prodPrice}
+                          onChange={(e) => setProdPrice(e.target.value)}
+                          className="w-full px-4 py-3 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black font-mono font-bold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
+                          Preço Original / Antes (€) (Opcional)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.10"
+                          placeholder="Ex: 24.90"
+                          value={prodOriginalPrice}
+                          onChange={(e) => setProdOriginalPrice(e.target.value)}
+                          className="w-full px-4 py-3 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black font-mono"
+                        />
+                      </div>
+
+                      {/* CAMPO DE STOCK NUMÉRICO */}
+                      <div className="sm:col-span-2 bg-neutral-50 p-4 rounded-2xl border border-neutral-200">
+                        <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
+                          Unidades em Stock *
+                        </label>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            required
+                            placeholder="Ex: 50"
+                            value={prodStock}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setProdStock(val);
+                              setProdInStock(parseInt(val, 10) > 0);
+                            }}
+                            className="w-full sm:w-48 px-4 py-2.5 text-xs border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black font-mono font-bold text-base"
+                          />
+                          <div
+                            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border ${
+                              parseInt(prodStock || '0', 10) > 0 && prodInStock
+                                ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                : 'bg-rose-100 text-rose-900 border-rose-300'
+                            }`}
+                          >
+                            <span className="w-2 h-2 rounded-full bg-current" />
+                            <span>
+                              {parseInt(prodStock || '0', 10) > 0 && prodInStock
+                                ? `${prodStock} unidades (Em Stock ✓)`
+                                : '0 unidades (Esgotado ✕)'}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-neutral-500 mt-1.5">
+                          {parseInt(prodStock || '0', 10) === 0
+                            ? '⚠️ Com 0 unidades em stock, o produto é automaticamente exibido como Esgotado aos clientes na loja.'
+                            : 'Define a quantidade real de stock físico disponível para este modelo de meia.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Sizes Selection from Configured Sizes */}
+                    <div className="pt-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider">
+                          Tamanhos Disponíveis
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('settings')}
+                          className="text-[11px] text-cyan-600 hover:underline cursor-pointer"
+                        >
+                          + Configurar Tamanhos da Loja
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2.5">
+                        {storeSettings.availableSizes.map((sz) => (
+                          <button
+                            type="button"
+                            key={sz}
+                            onClick={() => toggleSize(sz)}
+                            className={`px-5 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                              prodSizes.includes(sz)
+                                ? 'bg-black text-white border-black shadow-sm'
+                                : 'bg-neutral-50 text-neutral-600 border-neutral-300 hover:border-neutral-400'
+                            }`}
+                          >
+                            {sz} {prodSizes.includes(sz) ? '✓' : ''}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Colors Selection from Configured Colors */}
+                    <div className="pt-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider">
+                          Cores Deste Modelo (Selecione as opções ativas)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('settings')}
+                          className="text-[11px] text-cyan-600 hover:underline cursor-pointer"
+                        >
+                          + Gerir Paleta de Cores da Loja
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2.5">
+                        {storeSettings.availableColors.map((col) => {
+                          const isSelected = prodColors.some((c) => c.name === col.name);
+                          return (
+                            <button
+                              type="button"
+                              key={col.name}
+                              onClick={() => toggleProductColor(col)}
+                              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'border-black bg-neutral-50 ring-2 ring-black/20 font-bold'
+                                  : 'border-neutral-200 text-neutral-600 hover:border-neutral-400'
+                              }`}
+                            >
+                              <span
+                                className="w-3.5 h-3.5 rounded-full border border-black/20"
+                                style={{ backgroundColor: col.hex }}
+                              />
+                              <span>{col.name}</span>
+                              {isSelected && <span className="text-black font-bold">✓</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Image URL & Preset Selection */}
+                    <div className="pt-2">
+                      <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
+                        URL da Imagem da Meia
+                      </label>
+                      <input
+                        type="url"
+                        required
+                        placeholder="https://images.unsplash.com/..."
+                        value={prodImageUrl}
+                        onChange={(e) => setProdImageUrl(e.target.value)}
+                        className="w-full px-4 py-3 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
+                      />
+                      <div className="mt-3">
+                        <span className="text-[11px] text-neutral-500 font-semibold">
+                          Ou escolha uma fotografia modelo com 1 clique:
+                        </span>
+                        <div className="flex gap-3 mt-2 overflow-x-auto pb-2">
+                          {PRESET_SOCKS_IMAGES.map((img, idx) => (
+                            <button
+                              type="button"
+                              key={idx}
+                              onClick={() => setProdImageUrl(img)}
+                              className={`relative w-16 h-16 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
+                                prodImageUrl === img
+                                  ? 'border-cyan-500 ring-4 ring-cyan-100 shadow-md scale-105'
+                                  : 'border-neutral-200 opacity-60 hover:opacity-100'
+                              }`}
+                            >
+                              <img src={img} alt="preset" className="w-full h-full object-cover" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Description & Features */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
+                      <div>
+                        <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
+                          Descrição Completa
+                        </label>
+                        <textarea
+                          rows={4}
+                          placeholder="Descreva a tecnologia, biomecânica e respirabilidade da meia..."
+                          value={prodDescription}
+                          onChange={(e) => setProdDescription(e.target.value)}
+                          className="w-full px-4 py-2.5 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
+                          Especificações Técnicas (1 por linha)
+                        </label>
+                        <textarea
+                          rows={4}
+                          value={prodFeatures}
+                          onChange={(e) => setProdFeatures(e.target.value)}
+                          className="w-full px-4 py-2.5 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black font-mono text-[11px]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Featured in Home Section Toggle */}
+                    <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
+                          <Star className="w-5 h-5 fill-amber-500 text-amber-500" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-amber-950">
+                            Destacar na Página Inicial (Bloco pós-Hero)
+                          </div>
+                          <div className="text-[11px] text-amber-800/80">
+                            Esta meia aparecerá em destaque no bloco exclusivo logo a seguir ao Hero.
+                          </div>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={prodIsFeatured}
+                          onChange={(e) => setProdIsFeatured(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                      </label>
+                    </div>
+
+                    <div className="pt-6 border-t border-neutral-200 flex flex-wrap items-center justify-between gap-3">
                       <button
                         type="button"
-                        key={sz}
-                        onClick={() => toggleSize(sz)}
-                        className={`px-5 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                          prodSizes.includes(sz)
-                            ? 'bg-black text-white border-black shadow-sm'
-                            : 'bg-neutral-50 text-neutral-600 border-neutral-300 hover:border-neutral-400'
-                        }`}
+                        onClick={handleCancelProductForm}
+                        className="px-6 py-3 rounded-full border border-neutral-300 hover:bg-neutral-100 text-neutral-700 font-semibold text-xs transition-all cursor-pointer"
                       >
-                        {sz} {prodSizes.includes(sz) ? '✓' : ''}
+                        Cancelar e Voltar
                       </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Colors Selection from Configured Colors */}
-                <div className="pt-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider">
-                      Cores Deste Modelo (Selecione as opções ativas)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('settings')}
-                      className="text-[11px] text-cyan-600 hover:underline cursor-pointer"
-                    >
-                      + Gerir Paleta de Cores da Loja
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2.5">
-                    {storeSettings.availableColors.map((col) => {
-                      const isSelected = prodColors.some((c) => c.name === col.name);
-                      return (
-                        <button
-                          type="button"
-                          key={col.name}
-                          onClick={() => toggleProductColor(col)}
-                          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
-                            isSelected
-                              ? 'border-black bg-neutral-50 ring-2 ring-black/20 font-bold'
-                              : 'border-neutral-200 text-neutral-600 hover:border-neutral-400'
-                          }`}
-                        >
-                          <span
-                            className="w-3.5 h-3.5 rounded-full border border-black/20"
-                            style={{ backgroundColor: col.hex }}
-                          />
-                          <span>{col.name}</span>
-                          {isSelected && <span className="text-black font-bold">✓</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Image URL & Preset Selection */}
-                <div className="pt-2">
-                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
-                    URL da Imagem da Meia
-                  </label>
-                  <input
-                    type="url"
-                    required
-                    placeholder="https://images.unsplash.com/..."
-                    value={prodImageUrl}
-                    onChange={(e) => setProdImageUrl(e.target.value)}
-                    className="w-full px-4 py-3 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
-                  />
-                  <div className="mt-3">
-                    <span className="text-[11px] text-neutral-500 font-semibold">
-                      Ou escolha uma fotografia modelo com 1 clique:
-                    </span>
-                    <div className="flex gap-3 mt-2 overflow-x-auto pb-2">
-                      {PRESET_SOCKS_IMAGES.map((img, idx) => (
-                        <button
-                          type="button"
-                          key={idx}
-                          onClick={() => setProdImageUrl(img)}
-                          className={`relative w-16 h-16 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
-                            prodImageUrl === img
-                              ? 'border-cyan-500 ring-4 ring-cyan-100 shadow-md scale-105'
-                              : 'border-neutral-200 opacity-60 hover:opacity-100'
-                          }`}
-                        >
-                          <img src={img} alt="preset" className="w-full h-full object-cover" />
-                        </button>
-                      ))}
+                      <button
+                        type="submit"
+                        className="px-8 py-3.5 rounded-full bg-black text-white font-semibold text-xs hover:bg-neutral-800 hover:scale-[1.02] transition-all shadow-xl flex items-center gap-2 cursor-pointer"
+                      >
+                        {catalogMode === 'edit' ? (
+                          <>
+                            <Check className="w-4 h-4 text-emerald-400" />
+                            <span>Guardar Alterações da Meia</span>
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-4 h-4 text-cyan-400" />
+                            <span>Publicar Meia no Catálogo</span>
+                          </>
+                        )}
+                      </button>
                     </div>
-                  </div>
+                  </form>
                 </div>
-
-                {/* Description & Features */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
-                  <div>
-                    <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
-                      Descrição Completa
-                    </label>
-                    <textarea
-                      rows={4}
-                      placeholder="Descreva a tecnologia, biomecânica e respirabilidade da meia..."
-                      value={prodDescription}
-                      onChange={(e) => setProdDescription(e.target.value)}
-                      className="w-full px-4 py-2.5 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
-                      Especificações Técnicas (1 por linha)
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={prodFeatures}
-                      onChange={(e) => setProdFeatures(e.target.value)}
-                      className="w-full px-4 py-2.5 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black font-mono text-[11px]"
-                    />
-                  </div>
-                </div>
-
-                {/* Featured in Home Section Toggle */}
-                <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
-                      <Star className="w-5 h-5 fill-amber-500 text-amber-500" />
-                    </div>
+              ) : (
+                /* NORMAL LIST VIEW */
+                <div className="space-y-6">
+                  {/* Header */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-neutral-100 pb-4">
                     <div>
-                      <div className="text-xs font-bold text-amber-950">
-                        Destacar na Página Inicial (Bloco pós-Hero)
+                      <div className="flex items-center gap-2 text-cyan-600 font-bold text-xs uppercase tracking-wider mb-1">
+                        <Package className="w-4 h-4" />
+                        <span>Gestão de Inventário & Catálogo</span>
                       </div>
-                      <div className="text-[11px] text-amber-800/80">
-                        Esta meia aparecerá em destaque no bloco exclusivo logo a seguir ao Hero.
-                      </div>
+                      <h2 className="font-serif text-3xl sm:text-4xl text-black">
+                        Catálogo Ativo de Meias
+                      </h2>
+                      <p className="text-xs text-[#6F6F6F] mt-1">
+                        Filtre por categoria, disponibilidade de stock, badges de destaque ou pesquise em tempo real.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2.5">
+                      {hasActiveCatalogFilters && (
+                        <button
+                          onClick={resetCatalogFilters}
+                          className="flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-semibold transition-all cursor-pointer"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-neutral-500" />
+                          <span>Limpar Filtros</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={handleStartCreateProduct}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-black text-white text-xs font-bold hover:bg-neutral-800 transition-all cursor-pointer shadow-sm"
+                      >
+                        <Plus className="w-4 h-4 text-cyan-400" />
+                        <span>Novo Modelo</span>
+                      </button>
                     </div>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={prodIsFeatured}
-                      onChange={(e) => setProdIsFeatured(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-                  </label>
-                </div>
-
-                <div className="pt-6 border-t border-neutral-200 flex justify-end gap-3">
-                  <button
-                    type="submit"
-                    className="px-8 py-4 rounded-full bg-black text-white font-semibold text-xs hover:bg-neutral-800 hover:scale-[1.02] transition-all shadow-xl flex items-center gap-2 cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4 text-cyan-400" />
-                    <span>Publicar Meia no Catálogo</span>
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* TAB 2: LIST PRODUCTS WITH ADVANCED FILTERS */}
-          {activeTab === 'list-products' && (
-            <div className="space-y-6">
-              {/* Header */}
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-neutral-100 pb-4">
-                <div>
-                  <div className="flex items-center gap-2 text-cyan-600 font-bold text-xs uppercase tracking-wider mb-1">
-                    <Package className="w-4 h-4" />
-                    <span>Gestão de Inventário & Catálogo</span>
-                  </div>
-                  <h2 className="font-serif text-3xl sm:text-4xl text-black">
-                    Catálogo Ativo de Meias
-                  </h2>
-                  <p className="text-xs text-[#6F6F6F] mt-1">
-                    Filtre por categoria, disponibilidade de stock, badges de destaque ou pesquise em tempo real.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2.5">
-                  {hasActiveCatalogFilters && (
-                    <button
-                      onClick={resetCatalogFilters}
-                      className="flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-semibold transition-all cursor-pointer"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5 text-neutral-500" />
-                      <span>Limpar Filtros</span>
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setActiveTab('add-product')}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-black text-white text-xs font-bold hover:bg-neutral-800 transition-all cursor-pointer shadow-sm"
-                  >
-                    <Plus className="w-4 h-4 text-cyan-400" />
-                    <span>Novo Modelo</span>
-                  </button>
-                </div>
-              </div>
 
               {/* FEATURED SOCKS SPOTLIGHT MANAGEMENT BANNER */}
               <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-200/90 rounded-3xl p-5 sm:p-6">
@@ -1670,19 +1733,33 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                             )}
                           </td>
                           <td className="p-4">
-                            <button
-                              onClick={() => {
-                                updateProduct(p.id, { inStock: !p.inStock });
-                                showNotification(`Estado de stock de "${p.name}" alterado.`);
-                              }}
-                              className={`px-3 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-colors shadow-xs ${
-                                p.inStock
-                                  ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                                  : 'bg-rose-100 text-rose-800 hover:bg-rose-200'
-                              }`}
-                            >
-                              {p.inStock ? 'Em Stock ✓' : 'Esgotado ✕'}
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`px-2.5 py-1 rounded-full text-[11px] font-bold shadow-2xs border ${
+                                  p.inStock && (p.stock === undefined || p.stock > 0)
+                                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                    : 'bg-rose-100 text-rose-900 border-rose-300'
+                                }`}
+                              >
+                                {p.stock !== undefined ? `${p.stock} un.` : (p.inStock ? 'Em Stock' : 'Esgotado')}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newInStock = !p.inStock;
+                                  const currentStock = p.stock !== undefined ? p.stock : 30;
+                                  updateProduct(p.id, {
+                                    inStock: newInStock,
+                                    stock: newInStock ? (currentStock > 0 ? currentStock : 25) : 0,
+                                  });
+                                  showNotification(`Stock de "${p.name}" alterado.`);
+                                }}
+                                className="text-[10px] text-neutral-500 hover:text-black underline cursor-pointer"
+                                title="Alternar estado de stock"
+                              >
+                                {p.inStock && (p.stock === undefined || p.stock > 0) ? 'Esgotar' : 'Repor'}
+                              </button>
+                            </div>
                           </td>
                           <td className="p-4 text-center">
                             <button
@@ -1740,6 +1817,8 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
               )}
             </div>
           )}
+        </div>
+      )}
 
           {/* TAB 3: CATEGORIES & BANNER */}
           {activeTab === 'categories' && (
@@ -3898,350 +3977,6 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
           )}
         </div>
       </main>
-
-      {/* QUICK EDIT SOCK MODAL */}
-      {editingProduct && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
-          <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-neutral-200 overflow-hidden my-8 max-h-[92vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="px-6 py-5 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/70 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-cyan-100 text-cyan-800 flex items-center justify-center">
-                  <Pencil className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-cyan-600 text-white">
-                      Editar Meia
-                    </span>
-                    <span className="text-xs text-neutral-400 font-mono">ID: {editingProduct.id}</span>
-                  </div>
-                  <h3 className="text-lg font-serif font-bold text-black mt-0.5 truncate max-w-md">
-                    {editingProduct.name}
-                  </h3>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleCloseEditProduct}
-                className="p-2 text-neutral-400 hover:text-black rounded-xl hover:bg-neutral-200/60 transition-colors cursor-pointer"
-                title="Fechar"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Scrollable Form Body */}
-            <form id="edit-sock-form" onSubmit={handleSaveEditProduct} className="p-6 overflow-y-auto space-y-6 flex-1">
-              {/* Quick Info & Image Preview Row */}
-              <div className="flex flex-col sm:flex-row items-start gap-4 p-4 rounded-2xl bg-neutral-50 border border-neutral-200/80">
-                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-neutral-200 border border-neutral-300 shrink-0">
-                  <img
-                    src={editProdImageUrl || editingProduct.images[0]}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <div className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                    Fotografia Principal da Meia
-                  </div>
-                  <input
-                    type="url"
-                    required
-                    placeholder="https://images.unsplash.com/..."
-                    value={editProdImageUrl}
-                    onChange={(e) => setEditProdImageUrl(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black font-mono"
-                  />
-                  <div className="pt-2">
-                    <span className="text-[11px] text-neutral-500 font-semibold block mb-1.5">
-                      Ou selecione uma foto de meia com 1 clique:
-                    </span>
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                      {PRESET_SOCKS_IMAGES.map((img, idx) => (
-                        <button
-                          type="button"
-                          key={idx}
-                          onClick={() => setEditProdImageUrl(img)}
-                          className={`relative w-12 h-12 rounded-lg overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
-                            editProdImageUrl === img
-                              ? 'border-cyan-500 ring-2 ring-cyan-200 scale-105'
-                              : 'border-neutral-200 opacity-60 hover:opacity-100'
-                          }`}
-                        >
-                          <img src={img} alt="preset" className="w-full h-full object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Main Attributes Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
-                    Nome da Meia *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editProdName}
-                    onChange={(e) => setEditProdName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black font-semibold"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
-                    Subtítulo / Tagline
-                  </label>
-                  <input
-                    type="text"
-                    value={editProdTagline}
-                    onChange={(e) => setEditProdTagline(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
-                    Categoria *
-                  </label>
-                  <select
-                    value={editProdCategory}
-                    onChange={(e) => setEditProdCategory(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black cursor-pointer font-medium"
-                  >
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
-                    Badge de Destaque
-                  </label>
-                  <div className="flex flex-wrap gap-1 mb-1.5">
-                    {storeSettings.availableBadges.map((b) => (
-                      <button
-                        type="button"
-                        key={b}
-                        onClick={() => setEditProdBadge(editProdBadge === b ? '' : b)}
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                          editProdBadge === b
-                            ? 'bg-black text-white shadow-xs'
-                            : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-                        }`}
-                      >
-                        {b}
-                      </button>
-                    ))}
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Sem badge ou badge personalizada..."
-                    value={editProdBadge}
-                    onChange={(e) => setEditProdBadge(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
-                    Preço de Venda (€) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.10"
-                    required
-                    value={editProdPrice}
-                    onChange={(e) => setEditProdPrice(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black font-bold font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
-                    Preço Original / Antes (€)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.10"
-                    placeholder="Opcional (ex: 24.90)"
-                    value={editProdOriginalPrice}
-                    onChange={(e) => setEditProdOriginalPrice(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Status Toggles: Stock & Home Featured */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <div className="p-3.5 rounded-2xl border border-neutral-200 flex items-center justify-between gap-3 bg-neutral-50/60">
-                  <div>
-                    <span className="text-xs font-bold text-neutral-800 block">Disponibilidade de Stock</span>
-                    <span className="text-[11px] text-neutral-500">
-                      {editProdInStock ? 'A meia está visível e disponível para compra' : 'Aparece como Esgotada na loja'}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setEditProdInStock(!editProdInStock)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      editProdInStock
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'bg-rose-600 text-white shadow-xs'
-                    }`}
-                  >
-                    {editProdInStock ? 'Em Stock ✓' : 'Esgotado ✕'}
-                  </button>
-                </div>
-
-                <div className="p-3.5 rounded-2xl border border-amber-200 flex items-center justify-between gap-3 bg-amber-50/50">
-                  <div className="flex items-center gap-2">
-                    <Star className="w-4 h-4 fill-amber-500 text-amber-500 shrink-0" />
-                    <div>
-                      <span className="text-xs font-bold text-amber-950 block">Destaque na Home</span>
-                      <span className="text-[11px] text-amber-800/80">Exibir no bloco pós-Hero</span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setEditProdIsFeatured(!editProdIsFeatured)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      editProdIsFeatured
-                        ? 'bg-amber-500 text-white shadow-xs'
-                        : 'bg-white border border-amber-300 text-amber-900'
-                    }`}
-                  >
-                    {editProdIsFeatured ? 'Destacada ★' : 'Não Destacada'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Sizes Selection */}
-              <div>
-                <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-2">
-                  Tamanhos Disponíveis
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {storeSettings.availableSizes.map((sz) => (
-                    <button
-                      type="button"
-                      key={sz}
-                      onClick={() => toggleEditProdSize(sz)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                        editProdSizes.includes(sz)
-                          ? 'bg-black text-white border-black shadow-xs'
-                          : 'bg-neutral-50 text-neutral-600 border-neutral-300 hover:border-neutral-400'
-                      }`}
-                    >
-                      {sz} {editProdSizes.includes(sz) ? '✓' : ''}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Colors Selection */}
-              <div>
-                <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-2">
-                  Cores Ativas Deste Modelo
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {storeSettings.availableColors.map((col) => {
-                    const isSelected = editProdColors.some((c) => c.name === col.name);
-                    return (
-                      <button
-                        type="button"
-                        key={col.name}
-                        onClick={() => toggleEditProdColor(col)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
-                          isSelected
-                            ? 'border-black bg-neutral-100 ring-2 ring-black/20 font-bold'
-                            : 'border-neutral-200 text-neutral-600 hover:border-neutral-400'
-                        }`}
-                      >
-                        <span
-                          className="w-3 h-3 rounded-full border border-black/20 shrink-0"
-                          style={{ backgroundColor: col.hex }}
-                        />
-                        <span>{col.name}</span>
-                        {isSelected && <span className="text-black font-bold">✓</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Composition */}
-              <div>
-                <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
-                  Composição / Materiais
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: 70% Poliamida Q-Skin, 20% CoolMax, 10% Elastano"
-                  value={editProdMaterials}
-                  onChange={(e) => setEditProdMaterials(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
-                />
-              </div>
-
-              {/* Description & Features */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
-                    Descrição Detalhada
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={editProdDescription}
-                    onChange={(e) => setEditProdDescription(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
-                    Especificações Técnicas (1 por linha)
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={editProdFeatures}
-                    onChange={(e) => setEditProdFeatures(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black font-mono text-[11px]"
-                  />
-                </div>
-              </div>
-            </form>
-
-            {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-neutral-100 flex items-center justify-between bg-neutral-50 shrink-0">
-              <button
-                type="button"
-                onClick={handleCloseEditProduct}
-                className="px-5 py-2.5 rounded-xl border border-neutral-300 text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer"
-              >
-                Cancelar
-              </button>
-
-              <button
-                type="submit"
-                form="edit-sock-form"
-                className="px-6 py-2.5 rounded-xl bg-black text-white text-xs font-bold hover:bg-neutral-800 transition-all flex items-center gap-2 cursor-pointer shadow-md"
-              >
-                <Check className="w-4 h-4 text-emerald-400" />
-                <span>Guardar Alterações da Meia</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

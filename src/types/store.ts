@@ -112,6 +112,7 @@ export interface Product {
   rating: number;
   reviewCount: number;
   inStock: boolean;
+  stock?: number;
   isFeatured?: boolean;
   createdAt: string;
 }

@@ -45,6 +45,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   const [quantity, setQuantity] = useState(1);
   const [addedSuccess, setAddedSuccess] = useState(false);
 
+  const isOutOfStock = !product.inStock || (product.stock !== undefined && product.stock <= 0);
+
   // Scroll to top when product changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -222,8 +224,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 </p>
               </div>
 
-              {/* Price */}
-              <div className="flex items-baseline gap-3 pt-2">
+              {/* Price & Stock Status */}
+              <div className="flex flex-wrap items-center gap-3 pt-2">
                 <span className="text-3xl sm:text-4xl font-bold text-black font-sans">
                   €{product.price.toFixed(2)}
                 </span>
@@ -233,6 +235,23 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   </span>
                 )}
                 <span className="text-xs text-neutral-400 font-medium">IVA incluído</span>
+
+                {isOutOfStock ? (
+                  <span className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                    Esgotado
+                  </span>
+                ) : product.stock !== undefined && product.stock <= 5 ? (
+                  <span className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    Últimas {product.stock} unidades!
+                  </span>
+                ) : (
+                  <span className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    Em Stock {product.stock !== undefined ? `(${product.stock} un.)` : ''}
+                  </span>
+                )}
               </div>
 
               {/* Long Description */}
@@ -317,9 +336,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             {/* Purchase CTA Bar */}
             <div className="mt-8 pt-6 border-t border-neutral-200 flex items-center gap-4">
               {/* Quantity */}
-              <div className="flex items-center border border-neutral-300 rounded-full px-4 py-2 bg-neutral-50">
+              <div className={`flex items-center border border-neutral-300 rounded-full px-4 py-2 bg-neutral-50 ${isOutOfStock ? 'opacity-40 pointer-events-none' : ''}`}>
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  disabled={isOutOfStock}
                   className="text-neutral-500 hover:text-black font-bold px-2 py-1 text-sm cursor-pointer"
                 >
                   -
@@ -327,6 +347,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 <span className="w-8 text-center text-sm font-bold">{quantity}</span>
                 <button
                   onClick={() => setQuantity(quantity + 1)}
+                  disabled={isOutOfStock}
                   className="text-neutral-500 hover:text-black font-bold px-2 py-1 text-sm cursor-pointer"
                 >
                   +
@@ -336,14 +357,18 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               {/* Add to Cart Button */}
               <button
                 onClick={handleAddToCart}
-                disabled={addedSuccess}
-                className={`flex-1 flex items-center justify-center gap-2 py-4 px-8 rounded-full text-sm font-semibold transition-all duration-300 shadow-xl cursor-pointer ${
-                  addedSuccess
-                    ? 'bg-emerald-600 text-white scale-[1.01]'
-                    : 'bg-black text-white hover:bg-neutral-900 hover:scale-[1.02]'
+                disabled={isOutOfStock || addedSuccess}
+                className={`flex-1 flex items-center justify-center gap-2 py-4 px-8 rounded-full text-sm font-semibold transition-all duration-300 shadow-xl ${
+                  isOutOfStock
+                    ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed shadow-none'
+                    : addedSuccess
+                    ? 'bg-emerald-600 text-white scale-[1.01] cursor-pointer'
+                    : 'bg-black text-white hover:bg-neutral-900 hover:scale-[1.02] cursor-pointer'
                 }`}
               >
-                {addedSuccess ? (
+                {isOutOfStock ? (
+                  <span>Produto Esgotado</span>
+                ) : addedSuccess ? (
                   <>
                     <Check className="w-4 h-4" />
                     <span>Adicionado ao Carrinho!</span>

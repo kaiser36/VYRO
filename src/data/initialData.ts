@@ -64,6 +64,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.9,
     reviewCount: 142,
     inStock: true,
+    stock: 45,
     isFeatured: true,
     createdAt: '2026-01-15T10:00:00Z',
   },
@@ -96,6 +97,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.8,
     reviewCount: 98,
     inStock: true,
+    stock: 30,
     isFeatured: true,
     createdAt: '2026-02-01T14:30:00Z',
   },
@@ -128,6 +130,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 5.0,
     reviewCount: 64,
     inStock: true,
+    stock: 25,
     isFeatured: true,
     createdAt: '2026-02-20T08:15:00Z',
   },
@@ -158,6 +161,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.9,
     reviewCount: 112,
     inStock: true,
+    stock: 18,
     createdAt: '2026-01-28T16:45:00Z',
   },
   {
@@ -189,6 +193,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.7,
     reviewCount: 83,
     inStock: true,
+    stock: 60,
     createdAt: '2026-02-10T11:20:00Z',
   },
   {
@@ -218,6 +223,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.8,
     reviewCount: 51,
     inStock: true,
+    stock: 35,
     createdAt: '2026-02-25T09:00:00Z',
   },
 ];

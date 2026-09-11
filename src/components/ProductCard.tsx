@@ -35,22 +35,37 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView, 
     toggleFavorite(product.id);
   };
 
+  const isOutOfStock = !product.inStock || (product.stock !== undefined && product.stock <= 0);
+
   return (
     <div
       onClick={() => onQuickView(product)}
-      className="group relative flex flex-col bg-white rounded-2xl border border-neutral-200/80 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:-translate-y-1.5 cursor-pointer"
+      className="group relative flex flex-col bg-white rounded-3xl border border-neutral-200/90 overflow-hidden shadow-2xs hover:shadow-xl hover:border-black/20 transition-all duration-300 cursor-pointer"
     >
-      {/* Image container */}
-      <div className="relative aspect-[4/4.5] w-full overflow-hidden bg-neutral-100">
+      {/* Product Image Box */}
+      <div className="relative aspect-square w-full overflow-hidden bg-neutral-100">
         <img
           src={product.images[0]}
           alt={product.name}
-          className="h-full w-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
+          className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out ${
+            isOutOfStock ? 'opacity-60 grayscale-30' : ''
+          }`}
           loading="lazy"
         />
 
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
+          {isOutOfStock ? (
+            <span className="px-3 py-1 text-[10px] font-bold tracking-wider uppercase rounded-full bg-rose-600 text-white shadow-sm">
+              ESGOTADO
+            </span>
+          ) : (
+            product.stock !== undefined && product.stock <= 5 && (
+              <span className="px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase rounded-full bg-amber-500 text-white shadow-sm">
+                Últimas {product.stock} un.
+              </span>
+            )
+          )}
           {product.badge && (
             <span className="px-3 py-1 text-[10px] font-bold tracking-wider uppercase rounded-full bg-black/80 backdrop-blur-md text-white shadow-sm">
               {product.badge}
@@ -178,13 +193,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView, 
 
           <button
             onClick={handleAddToCart}
+            disabled={isOutOfStock}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 ${
-              addedAnimation
+              isOutOfStock
+                ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
+                : addedAnimation
                 ? 'bg-emerald-600 text-white scale-105'
-                : 'bg-neutral-900 text-white hover:bg-black hover:scale-105'
+                : 'bg-neutral-900 text-white hover:bg-black hover:scale-105 cursor-pointer'
             }`}
           >
-            {addedAnimation ? (
+            {isOutOfStock ? (
+              <span>Esgotado</span>
+            ) : addedAnimation ? (
               <>
                 <Check className="w-3.5 h-3.5" />
                 <span>Adicionado!</span>

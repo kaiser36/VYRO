@@ -12,11 +12,12 @@ interface CheckoutModalProps {
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onViewOrders }) => {
   const { items, total, clearCart } = useCart();
-  const { addOrder, storeSettings } = useStore();
-  const { currentUser, isAuthenticated, addPoints, useVoucher } = useUser();
+  const { addOrder, storeSettings, orders } = useStore();
+  const { currentUser, isAuthenticated, addPoints, useVoucher, assignCouponToUser } = useUser();
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [paymentMethod, setPaymentMethod] = useState<'mbway' | 'multibanco' | 'card'>('mbway');
   const [earnedPoints, setEarnedPoints] = useState(0);
+  const [earnedFirstOrderCoupon, setEarnedFirstOrderCoupon] = useState<string | null>(null);
 
   // Coupon & Voucher state
   const [couponCodeInput, setCouponCodeInput] = useState('');
@@ -146,13 +147,38 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
       status: 'Pago',
     });
 
+    const userPreviousOrders = orders.filter(
+      (o) => o.customerEmail.toLowerCase() === customerEmail.toLowerCase()
+    );
+    const isFirstOrder = userPreviousOrders.length === 0;
+
     const ptsRate = storeSettings.loyaltySettings?.pointsPerEuro || 10;
     const pts = Math.round(finalTotal * ptsRate);
     setEarnedPoints(pts);
-    if (isAuthenticated) {
+
+    if (isAuthenticated && currentUser) {
       addPoints(pts);
       if (appliedCoupon) {
         useVoucher(appliedCoupon.code);
+      }
+
+      // Check if automatic first-order coupon is enabled
+      if (
+        isFirstOrder &&
+        storeSettings.automaticCoupons?.firstOrderCouponEnabled &&
+        storeSettings.automaticCoupons?.firstOrderCouponCode
+      ) {
+        const firstCode = storeSettings.automaticCoupons.firstOrderCouponCode;
+        const matchedReward = (storeSettings.loyaltySettings?.rewards || []).find(
+          (r) => r.couponCode?.toUpperCase() === firstCode.toUpperCase()
+        );
+        assignCouponToUser(currentUser.id, {
+          code: firstCode.toUpperCase(),
+          title: matchedReward?.title || 'Cupão de Agradecimento (1ª Compra)',
+          discountType: matchedReward?.discountType || 'percent',
+          discountValue: matchedReward?.discountValue ?? 10,
+        });
+        setEarnedFirstOrderCoupon(firstCode);
       }
     }
 
@@ -494,6 +520,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                   </div>
                 )}
               </div>
+
+              {earnedFirstOrderCoupon && (
+                <div className="mt-4 p-4 rounded-2xl bg-purple-50 border border-purple-200/90 text-left text-xs max-w-sm w-full space-y-1 animate-fade-rise">
+                  <div className="flex items-center gap-2 text-purple-900 font-bold">
+                    <Ticket className="w-4 h-4 text-purple-600" />
+                    <span>Recompensa de 1ª Compra Atribuída!</span>
+                  </div>
+                  <p className="text-[11px] text-purple-700 leading-relaxed">
+                    Recebeste o cupão <strong className="font-mono bg-white px-2 py-0.5 rounded border border-purple-200 text-purple-900 font-bold">{earnedFirstOrderCoupon}</strong>. Já se encontra guardado na tua conta para a próxima encomenda!
+                  </p>
+                </div>
+              )}
 
               <div className="flex items-center gap-3 mt-8">
                 {onViewOrders && (

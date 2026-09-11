@@ -19,6 +19,15 @@ interface UserContextType {
   loginAsDemo: () => void;
   users: User[];
   updateUserPoints: (userId: string, newPoints: number) => void;
+  assignCouponToUser: (
+    userId: string,
+    voucher: {
+      code: string;
+      title: string;
+      discountType: 'amount' | 'percent' | 'free_shipping' | 'free_product';
+      discountValue: number;
+    }
+  ) => void;
 }
 
 const STORAGE_KEYS = {
@@ -119,6 +128,32 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: 'A palavra-passe deve ter pelo menos 4 caracteres.' };
     }
 
+    let welcomeVouchers: RedeemedVoucher[] = [];
+    try {
+      const savedStore = localStorage.getItem('vyro_store_settings_v1');
+      if (savedStore) {
+        const parsedStore = JSON.parse(savedStore);
+        const auto = parsedStore.automaticCoupons;
+        if (auto?.welcomeCouponEnabled && auto?.welcomeCouponCode) {
+          const matched = (parsedStore.loyaltySettings?.rewards || []).find(
+            (r: any) => r.couponCode?.toUpperCase() === auto.welcomeCouponCode.toUpperCase()
+          );
+          welcomeVouchers.push({
+            id: 'vch-welcome-' + Date.now().toString(36),
+            rewardId: matched?.id || 'auto-welcome',
+            title: matched?.title || 'Cupão de Boas-Vindas',
+            code: auto.welcomeCouponCode.toUpperCase(),
+            discountType: matched?.discountType || 'percent',
+            discountValue: matched?.discountValue ?? 10,
+            redeemedAt: new Date().toISOString(),
+            isUsed: false,
+          });
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     const newUser: User = {
       id: 'usr-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5),
       name: data.name.trim(),
@@ -129,11 +164,47 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       tier: 'Standard',
       preferredSize: data.preferredSize || '39-42',
       createdAt: new Date().toISOString(),
+      redeemedVouchers: welcomeVouchers,
     };
 
     setUsers((prev) => [...prev, newUser]);
     setActiveUserId(newUser.id);
     return { success: true };
+  };
+
+  const assignCouponToUser = (
+    userId: string,
+    voucher: {
+      code: string;
+      title: string;
+      discountType: 'amount' | 'percent' | 'free_shipping' | 'free_product';
+      discountValue: number;
+    }
+  ) => {
+    const newVoucher: RedeemedVoucher = {
+      id: 'vch-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5),
+      rewardId: 'admin-assigned',
+      title: voucher.title,
+      code: voucher.code.toUpperCase(),
+      discountType: voucher.discountType,
+      discountValue: voucher.discountValue,
+      redeemedAt: new Date().toISOString(),
+      isUsed: false,
+    };
+
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id !== userId) return u;
+        const exists = (u.redeemedVouchers || []).some(
+          (v) => v.code === newVoucher.code && !v.isUsed
+        );
+        if (exists) return u;
+        return {
+          ...u,
+          redeemedVouchers: [newVoucher, ...(u.redeemedVouchers || [])],
+        };
+      })
+    );
   };
 
   const logout = () => {
@@ -322,6 +393,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginAsDemo,
         users,
         updateUserPoints,
+        assignCouponToUser,
       }}
     >
       {children}

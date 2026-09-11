@@ -10,6 +10,7 @@ import {
   LoyaltyGoal,
   LoyaltySettings,
   CategoryBannerSettings,
+  AutomaticCouponSettings,
 } from '../types/store';
 import { INITIAL_CATEGORIES, INITIAL_ORDERS, INITIAL_PRODUCTS } from '../data/initialData';
 
@@ -125,6 +126,30 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
         minOrderValue: 25,
         tierRequired: 'All',
       },
+      {
+        id: 'rew-welcome-10',
+        title: 'Boas-Vindas à VYRO (10% OFF)',
+        pointsCost: 0,
+        description: 'Desconto especial de 10% para novos membros.',
+        enabled: true,
+        discountType: 'percent',
+        discountValue: 10,
+        couponCode: 'BEMVINDO10',
+        minOrderValue: 0,
+        tierRequired: 'All',
+      },
+      {
+        id: 'rew-first-order-10',
+        title: 'Obrigado Pela 1ª Compra (10% OFF)',
+        pointsCost: 0,
+        description: '10% de desconto na tua próxima encomenda de meias.',
+        enabled: true,
+        discountType: 'percent',
+        discountValue: 10,
+        couponCode: 'OBRIGADO10',
+        minOrderValue: 0,
+        tierRequired: 'All',
+      },
     ],
     goals: [
       {
@@ -196,6 +221,12 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     buttonText: 'Explorar Meias de Running',
     imageUrl: 'https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?w=1200&auto=format&fit=crop&q=80',
   },
+  automaticCoupons: {
+    welcomeCouponEnabled: true,
+    welcomeCouponCode: 'BEMVINDO10',
+    firstOrderCouponEnabled: true,
+    firstOrderCouponCode: 'OBRIGADO10',
+  },
 };
 
 interface StoreContextType {
@@ -216,6 +247,7 @@ interface StoreContextType {
   addOrder: (orderData: Omit<Order, 'id' | 'createdAt'>) => Order;
   updateStoreSettings: (newSettings: Partial<StoreSettings>) => void;
   updateCategoryBanner: (bannerData: Partial<CategoryBannerSettings>) => void;
+  updateAutomaticCoupons: (settings: Partial<AutomaticCouponSettings>) => void;
   updateGuaranteeBadge: (id: string, badgeData: Partial<GuaranteeBadge>) => void;
   addGuaranteeBadge: (badgeData: Omit<GuaranteeBadge, 'id'>) => void;
   deleteGuaranteeBadge: (id: string) => void;
@@ -307,6 +339,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           categoryBanner: {
             ...DEFAULT_STORE_SETTINGS.categoryBanner!,
             ...(parsed.categoryBanner || {}),
+          },
+          automaticCoupons: {
+            ...DEFAULT_STORE_SETTINGS.automaticCoupons!,
+            ...(parsed.automaticCoupons || {}),
           },
         };
       }
@@ -433,6 +469,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       categoryBanner: {
         ...(prev.categoryBanner || DEFAULT_STORE_SETTINGS.categoryBanner!),
         ...bannerData,
+      },
+    }));
+  };
+
+  const updateAutomaticCoupons = (couponSettings: Partial<AutomaticCouponSettings>) => {
+    setStoreSettings((prev) => ({
+      ...prev,
+      automaticCoupons: {
+        ...DEFAULT_STORE_SETTINGS.automaticCoupons!,
+        ...(prev.automaticCoupons || {}),
+        ...couponSettings,
       },
     }));
   };
@@ -626,6 +673,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addOrder,
         updateStoreSettings,
         updateCategoryBanner,
+        updateAutomaticCoupons,
         updateGuaranteeBadge,
         addGuaranteeBadge,
         deleteGuaranteeBadge,

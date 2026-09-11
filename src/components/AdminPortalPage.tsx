@@ -50,6 +50,7 @@ import {
   ExternalLink,
   Copy,
   CheckCheck,
+  Send,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useUser } from '../context/UserContext';
@@ -86,6 +87,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     deleteCategory,
     updateStoreSettings,
     updateCategoryBanner,
+    updateAutomaticCoupons,
     updateGuaranteeBadge,
     addGuaranteeBadge,
     deleteGuaranteeBadge,
@@ -104,7 +106,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     deleteLoyaltyGoal,
   } = useStore();
 
-  const { users, updateUserPoints } = useUser();
+  const { users, updateUserPoints, assignCouponToUser } = useUser();
 
   // Scroll to top on mount
   useEffect(() => {
@@ -248,6 +250,24 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     const number = Math.floor(Math.random() * 80 + 10);
     setNewRewardCouponCode(`${prefix}${number}`);
   };
+
+  // Coupon Sub-Tabs and Targeting State
+  const [couponSubTab, setCouponSubTab] = useState<'manage' | 'auto' | 'send'>('manage');
+  const [welcomeCouponEnabled, setWelcomeCouponEnabled] = useState<boolean>(
+    storeSettings.automaticCoupons?.welcomeCouponEnabled ?? true
+  );
+  const [welcomeCouponCode, setWelcomeCouponCode] = useState<string>(
+    storeSettings.automaticCoupons?.welcomeCouponCode || 'BEMVINDO10'
+  );
+  const [firstOrderCouponEnabled, setFirstOrderCouponEnabled] = useState<boolean>(
+    storeSettings.automaticCoupons?.firstOrderCouponEnabled ?? true
+  );
+  const [firstOrderCouponCode, setFirstOrderCouponCode] = useState<string>(
+    storeSettings.automaticCoupons?.firstOrderCouponCode || 'OBRIGADO10'
+  );
+
+  const [targetUserId, setTargetUserId] = useState<string>('');
+  const [targetCouponCode, setTargetCouponCode] = useState<string>('');
 
   // User Points Adjustment State
   const [adjustingUserId, setAdjustingUserId] = useState<string | null>(null);
@@ -2670,7 +2690,51 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                 </div>
               </div>
 
-              {/* Form: Criar Novo Cupão */}
+              {/* Sub-Tabs: 1. Todos os Cupões & Criar | 2. Envio Automático | 3. Enviar a Cliente */}
+              <div className="flex flex-wrap items-center gap-2 p-1.5 bg-neutral-100 rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() => setCouponSubTab('manage')}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    couponSubTab === 'manage'
+                      ? 'bg-black text-white shadow-sm'
+                      : 'text-neutral-700 hover:text-black hover:bg-neutral-200/60'
+                  }`}
+                >
+                  <Ticket className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Todos os Cupões & Criar ({(storeSettings.loyaltySettings?.rewards || []).length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCouponSubTab('auto')}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    couponSubTab === 'auto'
+                      ? 'bg-black text-white shadow-sm'
+                      : 'text-neutral-700 hover:text-black hover:bg-neutral-200/60'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Envio Automático (Novos Membros & 1ª Compra)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCouponSubTab('send')}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    couponSubTab === 'send'
+                      ? 'bg-black text-white shadow-sm'
+                      : 'text-neutral-700 hover:text-black hover:bg-neutral-200/60'
+                  }`}
+                >
+                  <Send className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Enviar a Cliente Específico ({users.length})</span>
+                </button>
+              </div>
+
+              {/* SUBTAB 1: MANAGE & CREATE COUPONS */}
+              {couponSubTab === 'manage' && (
+                <div className="space-y-8">
               <div className="bg-neutral-50 p-6 sm:p-8 rounded-3xl border border-neutral-200 shadow-xs space-y-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -3029,6 +3093,340 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
               </div>
             </div>
           )}
+
+          {/* SUBTAB 2: AUTOMATIC COUPONS (WELCOME & FIRST ORDER) */}
+          {couponSubTab === 'auto' && (
+            <div className="space-y-6">
+              <div className="bg-neutral-50 p-6 sm:p-8 rounded-3xl border border-neutral-200">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <Sparkles className="w-5 h-5 text-amber-500" />
+                  <h3 className="font-serif text-xl text-black font-semibold">
+                    Regras de Atribuição Automática de Cupões
+                  </h3>
+                </div>
+                <p className="text-xs text-[#6F6F6F] mb-8 max-w-2xl leading-relaxed">
+                  Ativa a entrega automática de cupões para novos registos e para clientes que finalizam a sua 1ª compra. Os cupões ficam automaticamente guardados na carteira do utilizador e aparecem prontos a usar no checkout.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* 1. Welcome Coupon */}
+                  <div className="p-6 rounded-2xl bg-white border border-neutral-200 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-cyan-50 text-cyan-700 flex items-center justify-center font-bold">
+                          <UserCheck className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-serif text-base text-black font-semibold">
+                            Cupão de Boas-Vindas
+                          </h4>
+                          <span className="text-[11px] text-neutral-500">
+                            Atribuído ao criar conta
+                          </span>
+                        </div>
+                      </div>
+
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={welcomeCouponEnabled}
+                          onChange={(e) => setWelcomeCouponEnabled(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
+                      </label>
+                    </div>
+
+                    <p className="text-xs text-neutral-600 leading-relaxed">
+                      Quando um novo utilizador cria conta na loja, este cupão é automaticamente associado à sua conta para incentivar a 1ª compra.
+                    </p>
+
+                    <div>
+                      <label className="text-[11px] font-bold uppercase text-neutral-700 tracking-wider block mb-1.5">
+                        Cupão a Atribuir:
+                      </label>
+                      <select
+                        disabled={!welcomeCouponEnabled}
+                        value={welcomeCouponCode}
+                        onChange={(e) => setWelcomeCouponCode(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-xs font-semibold border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black disabled:bg-neutral-100 disabled:text-neutral-400 cursor-pointer"
+                      >
+                        {(storeSettings.loyaltySettings?.rewards || []).map((r) => (
+                          <option key={r.id} value={r.couponCode}>
+                            {r.couponCode} — {r.title} ({r.discountType === 'percent' ? `-${r.discountValue}%` : r.discountType === 'free_shipping' ? 'Portes Grátis' : `-€${r.discountValue}`})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 2. First Order Completed Coupon */}
+                  <div className="p-6 rounded-2xl bg-white border border-neutral-200 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
+                          <Award className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-serif text-base text-black font-semibold">
+                            Cupão de 1ª Compra Concluída
+                          </h4>
+                          <span className="text-[11px] text-neutral-500">
+                            Atribuído após 1º pedido
+                          </span>
+                        </div>
+                      </div>
+
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={firstOrderCouponEnabled}
+                          onChange={(e) => setFirstOrderCouponEnabled(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
+                      </label>
+                    </div>
+
+                    <p className="text-xs text-neutral-600 leading-relaxed">
+                      Assim que o cliente conclui a sua 1ª compra com sucesso, este cupão é creditado na conta dele para a próxima encomenda.
+                    </p>
+
+                    <div>
+                      <label className="text-[11px] font-bold uppercase text-neutral-700 tracking-wider block mb-1.5">
+                        Cupão a Atribuir:
+                      </label>
+                      <select
+                        disabled={!firstOrderCouponEnabled}
+                        value={firstOrderCouponCode}
+                        onChange={(e) => setFirstOrderCouponCode(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-xs font-semibold border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black disabled:bg-neutral-100 disabled:text-neutral-400 cursor-pointer"
+                      >
+                        {(storeSettings.loyaltySettings?.rewards || []).map((r) => (
+                          <option key={r.id} value={r.couponCode}>
+                            {r.couponCode} — {r.title} ({r.discountType === 'percent' ? `-${r.discountValue}%` : r.discountType === 'free_shipping' ? 'Portes Grátis' : `-€${r.discountValue}`})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 pt-6 border-t border-neutral-200/80 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateAutomaticCoupons({
+                        welcomeCouponEnabled,
+                        welcomeCouponCode,
+                        firstOrderCouponEnabled,
+                        firstOrderCouponCode,
+                      });
+                      showNotification('Regras de envio automático de cupões guardadas com sucesso!');
+                    }}
+                    className="px-7 py-3 rounded-full bg-black text-white text-xs font-bold hover:bg-neutral-800 transition-all flex items-center gap-2 cursor-pointer shadow-md hover:scale-[1.02] active:scale-95"
+                  >
+                    <Check className="w-4 h-4 text-cyan-400" />
+                    <span>Guardar Regras Automáticas</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SUBTAB 3: SEND COUPON TO SPECIFIC CLIENT */}
+          {couponSubTab === 'send' && (
+            <div className="space-y-8">
+              {/* Send Form Card */}
+              <div className="bg-neutral-50 p-6 sm:p-8 rounded-3xl border border-neutral-200 shadow-xs space-y-6">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                    <Send className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-xl text-black font-semibold">
+                      Enviar Cupão para um Cliente Específico
+                    </h3>
+                    <p className="text-xs text-[#6F6F6F]">
+                      Escolhe o cliente e o cupão pretendido. O cupão será imediatamente creditado na carteira de cupões da conta do cliente.
+                    </p>
+                  </div>
+                </div>
+
+                {users.length === 0 ? (
+                  <div className="bg-white p-6 rounded-2xl border border-neutral-200 text-center text-xs text-neutral-500">
+                    Ainda não existem clientes registados na loja.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
+                    {/* Client Selector */}
+                    <div className="lg:col-span-6">
+                      <label className="text-xs font-bold text-neutral-800 uppercase tracking-wider block mb-1.5">
+                        Selecionar Cliente *
+                      </label>
+                      <select
+                        value={targetUserId || (users[0]?.id || '')}
+                        onChange={(e) => setTargetUserId(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-xs font-semibold border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black cursor-pointer"
+                      >
+                        {users.map((u) => {
+                          const activeVouchers = (u.redeemedVouchers || []).filter((v) => !v.isUsed).length;
+                          return (
+                            <option key={u.id} value={u.id}>
+                              {u.name} — {u.email} ({activeVouchers} {activeVouchers === 1 ? 'cupão ativo' : 'cupões ativos'})
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    {/* Coupon Selector */}
+                    <div className="lg:col-span-6">
+                      <label className="text-xs font-bold text-neutral-800 uppercase tracking-wider block mb-1.5">
+                        Selecionar Cupão da Loja *
+                      </label>
+                      <select
+                        value={targetCouponCode || (storeSettings.loyaltySettings?.rewards?.[0]?.couponCode || '')}
+                        onChange={(e) => setTargetCouponCode(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-xs font-semibold border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black cursor-pointer"
+                      >
+                        {(storeSettings.loyaltySettings?.rewards || []).map((r) => (
+                          <option key={r.id} value={r.couponCode}>
+                            {r.couponCode} — {r.title} ({r.discountType === 'percent' ? `-${r.discountValue}%` : r.discountType === 'free_shipping' ? 'Portes Grátis' : `-€${r.discountValue}`})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="lg:col-span-12 flex justify-end pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const uId = targetUserId || users[0]?.id;
+                          const cCode = targetCouponCode || storeSettings.loyaltySettings?.rewards?.[0]?.couponCode;
+                          if (!uId || !cCode) {
+                            showNotification('Seleciona o cliente e o cupão a atribuir.');
+                            return;
+                          }
+
+                          const targetUser = users.find((u) => u.id === uId);
+                          const matchedReward = (storeSettings.loyaltySettings?.rewards || []).find(
+                            (r) => r.couponCode?.toUpperCase() === cCode.toUpperCase()
+                          );
+
+                          if (!targetUser || !matchedReward) {
+                            showNotification('Dados inválidos para atribuição.');
+                            return;
+                          }
+
+                          assignCouponToUser(uId, {
+                            code: matchedReward.couponCode || cCode,
+                            title: matchedReward.title,
+                            discountType: matchedReward.discountType || 'percent',
+                            discountValue: matchedReward.discountValue ?? 10,
+                          });
+
+                          showNotification(
+                            `Cupão "${matchedReward.couponCode}" atribuído com sucesso a ${targetUser.name} (${targetUser.email})!`
+                          );
+                        }}
+                        className="px-7 py-3 rounded-full bg-black text-white text-xs font-bold hover:bg-neutral-800 transition-all flex items-center gap-2 cursor-pointer shadow-md hover:scale-[1.02] active:scale-95"
+                      >
+                        <Send className="w-4 h-4 text-cyan-400" />
+                        <span>Atribuir Cupão a este Cliente</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Clients and their assigned vouchers list */}
+              <div className="space-y-4">
+                <h4 className="font-serif text-xl text-black font-semibold">
+                  Clientes Registados & Cupões Atribuídos ({users.length})
+                </h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {users.map((u) => {
+                    const activeVouchers = (u.redeemedVouchers || []).filter((v) => !v.isUsed);
+                    const usedVouchers = (u.redeemedVouchers || []).filter((v) => v.isUsed);
+
+                    return (
+                      <div
+                        key={u.id}
+                        className="p-5 rounded-2xl bg-white border border-neutral-200 shadow-xs flex flex-col justify-between space-y-4"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-semibold text-sm text-black">{u.name}</span>
+                            <span className="text-[10px] text-neutral-400 font-mono">
+                              {new Date(u.createdAt).toLocaleDateString('pt-PT')}
+                            </span>
+                          </div>
+                          <span className="text-xs text-neutral-500 block mb-3">{u.email}</span>
+
+                          {/* Vouchers list for this user */}
+                          <div className="space-y-2">
+                            <span className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider block">
+                              Cupões na Conta ({activeVouchers.length} ativos):
+                            </span>
+
+                            {activeVouchers.length === 0 ? (
+                              <span className="text-xs text-neutral-400 italic block">
+                                Nenhum cupão ativo no momento.
+                              </span>
+                            ) : (
+                              <div className="flex flex-wrap gap-1.5">
+                                {activeVouchers.map((v) => (
+                                  <span
+                                    key={v.id}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 font-mono text-xs font-bold"
+                                  >
+                                    <Ticket className="w-3 h-3 text-purple-600" />
+                                    <span>{v.code}</span>
+                                    <span className="text-[10px] text-purple-600 font-sans font-normal">
+                                      ({v.discountType === 'percent' ? `-${v.discountValue}%` : `-€${v.discountValue}`})
+                                    </span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {usedVouchers.length > 0 && (
+                              <div className="pt-2 text-[10px] text-neutral-400">
+                                <span>Já utilizou {usedVouchers.length} {usedVouchers.length === 1 ? 'cupão' : 'cupões'}: </span>
+                                <span className="font-mono line-through">
+                                  {usedVouchers.map((v) => v.code).join(', ')}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Quick Add Button */}
+                        <div className="pt-3 border-t border-neutral-100 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTargetUserId(u.id);
+                              window.scrollTo({ top: 400, behavior: 'smooth' });
+                            }}
+                            className="text-xs text-cyan-700 hover:text-cyan-800 font-semibold flex items-center gap-1 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Selecionar para atribuir novo cupão</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
           {/* TAB 5: SALES METRICS & E-COMMERCE INTELLIGENCE */}
           {activeTab === 'stats' && (

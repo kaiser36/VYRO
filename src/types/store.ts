@@ -54,6 +54,13 @@ export interface CategoryBannerSettings {
   imageUrl: string;
 }
 
+export interface AutomaticCouponSettings {
+  welcomeCouponEnabled: boolean;
+  welcomeCouponCode?: string;
+  firstOrderCouponEnabled: boolean;
+  firstOrderCouponCode?: string;
+}
+
 export interface StoreSettings {
   freeShippingThreshold: number;
   shippingCost: number;
@@ -64,6 +71,7 @@ export interface StoreSettings {
   guaranteeBadges: GuaranteeBadge[];
   loyaltySettings: LoyaltySettings;
   categoryBanner?: CategoryBannerSettings;
+  automaticCoupons?: AutomaticCouponSettings;
 }
 
 export interface OrderItem {

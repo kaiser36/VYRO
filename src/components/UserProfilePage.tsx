@@ -33,7 +33,7 @@ import { Product, LoyaltyGoal } from '../types/store';
 interface UserProfilePageProps {
   onBackToStore: () => void;
   onOpenProductDetail: (product: Product) => void;
-  initialTab?: 'overview' | 'orders' | 'favorites' | 'profile' | 'rewards';
+  initialTab?: 'overview' | 'orders' | 'favorites' | 'profile' | 'rewards' | 'coupons';
 }
 
 export const UserProfilePage: React.FC<UserProfilePageProps> = ({
@@ -44,7 +44,7 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
   const { currentUser, logout, updateProfile, toggleFavorite, claimGoal, redeemReward } = useUser();
   const { products, orders, storeSettings } = useStore();
   const { addItem, setIsCartOpen } = useCart();
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'favorites' | 'profile' | 'rewards'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'favorites' | 'profile' | 'rewards' | 'coupons'>(initialTab);
   const [copiedVoucherCode, setCopiedVoucherCode] = useState<string | null>(null);
   const [rewardNotice, setRewardNotice] = useState<string | null>(null);
 
@@ -227,6 +227,18 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
             >
               <Gift className="w-4 h-4" />
               <span>Clube VYRO</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('coupons')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap cursor-pointer ${
+                activeTab === 'coupons'
+                  ? 'bg-white text-black shadow-md'
+                  : 'text-neutral-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Ticket className="w-4 h-4" />
+              <span>Os Meus Cupões ({((currentUser.redeemedVouchers as any[]) || []).filter((v) => !v.isUsed).length})</span>
             </button>
           </div>
         </div>
@@ -1084,6 +1096,150 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 6: OS MEUS CUPÕES */}
+        {activeTab === 'coupons' && (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white rounded-3xl p-6 sm:p-8 shadow-sm">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-xs text-xs font-bold uppercase tracking-wider text-white mb-3">
+                    <Ticket className="w-3.5 h-3.5" /> Os Teus Descontos Exclusivos
+                  </span>
+                  <h2 className="text-2xl sm:text-3xl font-serif font-bold">Cupões & Vouchers</h2>
+                  <p className="text-white/80 text-sm mt-1 max-w-xl">
+                    Aqui encontras os cupões atribuídos à tua conta — como o cupão de boas-vindas, recompensa de primeira compra e ofertas exclusivas enviadas pela equipa VYRO.
+                  </p>
+                </div>
+                <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl text-center shrink-0 min-w-[140px]">
+                  <p className="text-xs uppercase tracking-wider text-white/80 font-medium">Disponíveis</p>
+                  <p className="text-3xl font-black mt-0.5">
+                    {((currentUser.redeemedVouchers as any[]) || []).filter((v) => !v.isUsed).length}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Cupões Ativos */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-serif font-bold text-black flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-500" />
+                Cupões Disponíveis para Usar
+              </h3>
+
+              {((currentUser.redeemedVouchers as any[]) || []).filter((v) => !v.isUsed).length === 0 ? (
+                <div className="bg-white rounded-3xl p-10 border border-neutral-200 text-center">
+                  <Ticket className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
+                  <p className="font-serif font-bold text-lg text-black">Não tens cupões ativos de momento</p>
+                  <p className="text-xs text-neutral-500 max-w-md mx-auto mt-1">
+                    Novos cupões atribuídos ao teu registo ou compras aparecerão aqui automaticamente. Podes também desbloquear cupões no separador <strong>Clube VYRO</strong> com os teus pontos!
+                  </p>
+                  <button
+                    onClick={onBackToStore}
+                    className="mt-5 px-5 py-2.5 bg-black hover:bg-neutral-800 text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+                  >
+                    Explorar Meias VYRO
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {((currentUser.redeemedVouchers as any[]) || [])
+                    .filter((v) => !v.isUsed)
+                    .map((voucher) => (
+                      <div
+                        key={voucher.id}
+                        className="bg-white rounded-2xl border-2 border-amber-200/80 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between"
+                      >
+                        <div className="absolute -top-6 -right-6 w-20 h-20 bg-amber-100 rounded-full blur-xl opacity-60 pointer-events-none" />
+                        
+                        <div>
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
+                              {voucher.discountType === 'percent'
+                                ? `-${voucher.discountValue}% DE DESCONTO`
+                                : `-${voucher.discountValue.toFixed(2)}€ DE DESCONTO`}
+                            </span>
+                            <span className="text-[11px] text-neutral-400">
+                              Atribuído em {new Date(voucher.redeemedAt).toLocaleDateString('pt-PT')}
+                            </span>
+                          </div>
+
+                          <h4 className="text-base font-bold text-neutral-900 mb-1">{voucher.title}</h4>
+                          <p className="text-xs text-neutral-500 mb-4">
+                            Aplica este código no checkout para usufruir do desconto imediato.
+                          </p>
+                        </div>
+
+                        <div className="pt-3 border-t border-dashed border-neutral-200 flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <code className="px-3 py-1.5 rounded-xl bg-neutral-900 font-mono font-bold text-sm text-amber-300 tracking-wider">
+                              {voucher.code}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(voucher.code);
+                                setCopiedVoucherCode(voucher.code);
+                                setTimeout(() => setCopiedVoucherCode(null), 2000);
+                              }}
+                              className="p-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 cursor-pointer transition-colors"
+                              title="Copiar Código"
+                            >
+                              {copiedVoucherCode === voucher.code ? (
+                                <Check className="w-4 h-4 text-emerald-600" />
+                              ) : (
+                                <Copy className="w-4 h-4" />
+                              )}
+                            </button>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(voucher.code);
+                              onBackToStore();
+                              setIsCartOpen(true);
+                            }}
+                            className="px-4 py-2 bg-black hover:bg-neutral-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                          >
+                            <span>Usar no Carrinho</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+
+            {/* Histórico de Cupões Usados */}
+            {((currentUser.redeemedVouchers as any[]) || []).filter((v) => v.isUsed).length > 0 && (
+              <div className="pt-4 border-t border-neutral-200">
+                <h3 className="text-sm font-bold text-neutral-500 uppercase tracking-wider mb-3">
+                  Histórico de Cupões Utilizados
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 opacity-70">
+                  {((currentUser.redeemedVouchers as any[]) || [])
+                    .filter((v) => v.isUsed)
+                    .map((voucher) => (
+                      <div
+                        key={voucher.id}
+                        className="bg-neutral-100 rounded-xl p-3.5 border border-neutral-200 flex items-center justify-between gap-3"
+                      >
+                        <div>
+                          <p className="text-xs font-bold text-neutral-700">{voucher.title}</p>
+                          <code className="text-xs font-mono text-neutral-500">{voucher.code}</code>
+                        </div>
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-neutral-200 text-neutral-600">
+                          Utilizado
+                        </span>
+                      </div>
+                    ))}
                 </div>
               </div>
             )}

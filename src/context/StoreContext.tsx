@@ -12,6 +12,7 @@ import {
   LoyaltySettings,
   CategoryBannerSettings,
   AutomaticCouponSettings,
+  EasypaySettings,
 } from '../types/store';
 import { INITIAL_CATEGORIES, INITIAL_ORDERS, INITIAL_PRODUCTS } from '../data/initialData';
 import {
@@ -19,6 +20,7 @@ import {
   sendOrderConfirmationEmail,
   sendOrderStatusUpdateEmail,
 } from '../services/emailService';
+import { DEFAULT_EASYPAY_SETTINGS } from '../services/easypayService';
 
 export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   freeShippingThreshold: 40.0,
@@ -234,6 +236,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     firstOrderCouponCode: 'OBRIGADO10',
   },
   brevoSettings: DEFAULT_BREVO_SETTINGS,
+  easypaySettings: DEFAULT_EASYPAY_SETTINGS,
 };
 
 interface StoreContextType {
@@ -260,6 +263,7 @@ interface StoreContextType {
   updateStoreSettings: (newSettings: Partial<StoreSettings>) => void;
   updateCategoryBanner: (bannerData: Partial<CategoryBannerSettings>) => void;
   updateAutomaticCoupons: (settings: Partial<AutomaticCouponSettings>) => void;
+  updateEasypaySettings: (settings: Partial<EasypaySettings>) => void;
   updateGuaranteeBadge: (id: string, badgeData: Partial<GuaranteeBadge>) => void;
   addGuaranteeBadge: (badgeData: Omit<GuaranteeBadge, 'id'>) => void;
   deleteGuaranteeBadge: (id: string) => void;
@@ -390,6 +394,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           automaticCoupons: {
             ...DEFAULT_STORE_SETTINGS.automaticCoupons!,
             ...(parsed.automaticCoupons || {}),
+          },
+          easypaySettings: {
+            ...DEFAULT_STORE_SETTINGS.easypaySettings!,
+            ...(parsed.easypaySettings || {}),
           },
         };
       }
@@ -588,6 +596,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         ...DEFAULT_STORE_SETTINGS.automaticCoupons!,
         ...(prev.automaticCoupons || {}),
         ...couponSettings,
+      },
+    }));
+  };
+
+  const updateEasypaySettings = (easypayData: Partial<EasypaySettings>) => {
+    setStoreSettings((prev) => ({
+      ...prev,
+      easypaySettings: {
+        ...(prev.easypaySettings || DEFAULT_EASYPAY_SETTINGS),
+        ...easypayData,
       },
     }));
   };
@@ -893,6 +911,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateStoreSettings,
         updateCategoryBanner,
         updateAutomaticCoupons,
+        updateEasypaySettings,
         updateGuaranteeBadge,
         addGuaranteeBadge,
         deleteGuaranteeBadge,

@@ -1,8 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle2, ShieldCheck, CreditCard, Smartphone, Building2, ArrowRight, Sparkles, User, Ticket, Tag, Check } from 'lucide-react';
+import {
+  X,
+  CheckCircle2,
+  ShieldCheck,
+  CreditCard,
+  Smartphone,
+  Building2,
+  ArrowRight,
+  Sparkles,
+  User,
+  Ticket,
+  Tag,
+  Check,
+  Copy,
+  CheckCheck,
+  Lock,
+  RefreshCw,
+} from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useStore } from '../context/StoreContext';
 import { useUser } from '../context/UserContext';
+import { createEasypayPayment, EasypayPaymentResult } from '../services/easypayService';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -16,6 +34,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
   const { currentUser, isAuthenticated, useVoucher, assignCouponToUser } = useUser();
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [paymentMethod, setPaymentMethod] = useState<'mbway' | 'multibanco' | 'card'>('mbway');
+  const [mbwayPhoneInput, setMbwayPhoneInput] = useState('');
+  const [easypayResult, setEasypayResult] = useState<EasypayPaymentResult | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [earnedFirstOrderCoupon, setEarnedFirstOrderCoupon] = useState<string | null>(null);
 
   // Coupon & Voucher state
@@ -50,6 +72,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
         city: currentUser.address?.city || '',
         postalCode: currentUser.address?.postalCode || '',
       });
+      if (currentUser.phone) {
+        setMbwayPhoneInput(currentUser.phone);
+      }
     } else {
       setFormData({
         name: 'Tiago Silva',
@@ -59,8 +84,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
         city: 'Lisboa',
         postalCode: '1250-142',
       });
+      setMbwayPhoneInput('912 345 678');
     }
   }, [currentUser, isOpen]);
+
+  const handleCopyText = (text: string, fieldKey: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldKey);
+    setTimeout(() => setCopiedField(null), 2500);
+  };
 
   if (!isOpen) return null;
 
@@ -127,9 +159,31 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
     setCouponError('Código de cupão inválido ou já utilizado.');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsProcessingPayment(true);
+
     const customerEmail = currentUser ? currentUser.email : formData.email;
+    const phoneForPayment = paymentMethod === 'mbway' ? (mbwayPhoneInput || formData.phone) : formData.phone;
+
+    // Call Easypay Service (live API if configured or simulation)
+    const epPayment = await createEasypayPayment(
+      storeSettings.easypaySettings,
+      {
+        amount: finalTotal,
+        method: paymentMethod,
+        customerName: formData.name,
+        customerEmail: customerEmail,
+        customerPhone: phoneForPayment,
+        orderId: `VYRO-${Date.now().toString().slice(-6)}`,
+      }
+    );
+
+    setEasypayResult(epPayment);
+
+    // If Multibanco, order status is 'Pendente' until payment receipt; otherwise 'Pago'
+    const initialStatus = paymentMethod === 'multibanco' ? 'Pendente' : 'Pago';
+
     const newOrder = addOrder({
       customerName: formData.name,
       customerEmail: customerEmail,
@@ -144,7 +198,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
       })),
       totalAmount: finalTotal,
       paymentMethod,
-      status: 'Pago',
+      status: initialStatus,
+      easypayPaymentId: epPayment.paymentId,
+      easypayStatus: epPayment.status,
+      mbwayPhone: paymentMethod === 'mbway' ? phoneForPayment : undefined,
+      multibancoEntity: epPayment.multibancoEntity,
+      multibancoReference: epPayment.multibancoReference,
+      multibancoExpiration: epPayment.multibancoExpiration,
+      paymentUrl: epPayment.paymentUrl,
     });
 
     const userPreviousOrders = orders.filter(
@@ -178,12 +239,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
     }
 
     setOrderNumber(newOrder.id);
+    setIsProcessingPayment(false);
     setStep('success');
     clearCart();
   };
 
   const handleClose = () => {
     setStep('form');
+    setEasypayResult(null);
     onClose();
   };
 
@@ -421,7 +484,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                     onClick={() => setPaymentMethod('mbway')}
                     className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                       paymentMethod === 'mbway'
-                        ? 'border-black bg-neutral-50 ring-1 ring-black'
+                        ? 'border-black bg-neutral-50 ring-1 ring-black shadow-sm'
                         : 'border-neutral-200 hover:border-neutral-300'
                     }`}
                   >
@@ -435,7 +498,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                     onClick={() => setPaymentMethod('multibanco')}
                     className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                       paymentMethod === 'multibanco'
-                        ? 'border-black bg-neutral-50 ring-1 ring-black'
+                        ? 'border-black bg-neutral-50 ring-1 ring-black shadow-sm'
                         : 'border-neutral-200 hover:border-neutral-300'
                     }`}
                   >
@@ -449,7 +512,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                     onClick={() => setPaymentMethod('card')}
                     className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                       paymentMethod === 'card'
-                        ? 'border-black bg-neutral-50 ring-1 ring-black'
+                        ? 'border-black bg-neutral-50 ring-1 ring-black shadow-sm'
                         : 'border-neutral-200 hover:border-neutral-300'
                     }`}
                   >
@@ -458,41 +521,227 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                     <span className="text-[10px] text-neutral-500">Visa / Mastercard</span>
                   </button>
                 </div>
+
+                {/* Sub-options based on method */}
+                {paymentMethod === 'mbway' && (
+                  <div className="mt-3 p-3.5 bg-neutral-50 rounded-2xl border border-neutral-200 animate-fade-rise space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-neutral-800">
+                        Nº de Telemóvel associado ao MB WAY
+                      </label>
+                      <span className="text-[10px] text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded-full border border-cyan-200 font-semibold">
+                        Notificação push imediata
+                      </span>
+                    </div>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="ex: 912 345 678"
+                      value={mbwayPhoneInput}
+                      onChange={(e) => setMbwayPhoneInput(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-neutral-300 rounded-xl text-xs font-mono focus:outline-none focus:border-cyan-600"
+                    />
+                    <p className="text-[10px] text-neutral-500 leading-tight">
+                      Irás receber uma notificação na tua aplicação MB WAY para aprovar o pagamento de €{finalTotal.toFixed(2)} em 4 minutos.
+                    </p>
+                  </div>
+                )}
+
+                {paymentMethod === 'multibanco' && (
+                  <div className="mt-3 p-3.5 bg-neutral-50 rounded-2xl border border-neutral-200 animate-fade-rise text-xs text-neutral-600 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-neutral-800">
+                      <Building2 className="w-3.5 h-3.5 text-neutral-700" />
+                      <span>Referência de Pagamento Multibanco</span>
+                    </div>
+                    <p className="text-[10px] text-neutral-500 leading-tight">
+                      Após confirmares, serão gerados os dados oficiais (Entidade, Referência e Montante) para pagamento em qualquer caixa Multibanco ou através do teu Homebanking.
+                    </p>
+                  </div>
+                )}
+
+                {paymentMethod === 'card' && (
+                  <div className="mt-3 p-3.5 bg-neutral-50 rounded-2xl border border-neutral-200 animate-fade-rise text-xs text-neutral-600 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-neutral-800">
+                      <CreditCard className="w-3.5 h-3.5 text-neutral-700" />
+                      <span>Cartão Bancário com 3D Secure</span>
+                    </div>
+                    <p className="text-[10px] text-neutral-500 leading-tight">
+                      Transação segura processada pela infraestrutura certificada Easypay.
+                    </p>
+                  </div>
+                )}
+
+                {/* Easypay Trust Badge */}
+                <div className="mt-3 flex items-center justify-between text-[11px] text-neutral-400 px-1">
+                  <span className="flex items-center gap-1.5">
+                    <Lock className="w-3 h-3 text-emerald-600" />
+                    <span>Pagamentos encriptados e auditados</span>
+                  </span>
+                  <span className="text-[11px] text-neutral-500 font-medium">
+                    Processado por <strong className="text-black font-semibold">easypay</strong>
+                  </span>
+                </div>
               </div>
 
               {/* Submit CTA */}
               <button
                 type="submit"
-                className="w-full py-4 rounded-full bg-black text-white font-medium text-sm hover:scale-[1.01] active:scale-95 transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer"
+                disabled={isProcessingPayment}
+                className="w-full py-4 rounded-full bg-black text-white font-medium text-sm hover:scale-[1.01] active:scale-95 transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <span>
-                  Confirmar Encomenda • €{finalTotal.toFixed(2)}
-                  {discountAmount > 0 && ` (Desconto -€${discountAmount.toFixed(2)})`}
-                </span>
-                <ArrowRight className="w-4 h-4 text-cyan-400" />
+                {isProcessingPayment ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
+                    <span>A comunicar com Easypay...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>
+                      Confirmar Encomenda • €{finalTotal.toFixed(2)}
+                      {discountAmount > 0 && ` (Desconto -€${discountAmount.toFixed(2)})`}
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-cyan-400" />
+                  </>
+                )}
               </button>
             </form>
           ) : (
-            <div className="py-8 text-center flex flex-col items-center justify-center animate-fade-rise">
-              <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
+            <div className="py-6 text-center flex flex-col items-center justify-center animate-fade-rise">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+                paymentMethod === 'multibanco' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'
+              }`}>
                 <CheckCircle2 className="w-10 h-10" />
               </div>
 
-              <span className="text-xs font-semibold uppercase tracking-wider text-cyan-600">
-                Pagamento Autorizado
+              <span className={`text-xs font-bold uppercase tracking-wider ${
+                paymentMethod === 'multibanco' ? 'text-amber-600' : 'text-cyan-600'
+              }`}>
+                {paymentMethod === 'multibanco' ? 'Aguarda Pagamento Multibanco' : 'Pagamento Autorizado'}
               </span>
               <h3 className="font-serif text-3xl sm:text-4xl text-black mt-1">
-                Obrigado pelo teu pedido!
+                {paymentMethod === 'multibanco' ? 'Encomenda Registada!' : 'Obrigado pelo teu pedido!'}
               </h3>
               <p className="text-xs text-neutral-500 mt-2 max-w-md">
-                A tua encomenda de meias técnicas VYRO foi registada com sucesso. Enviámos a confirmação e os detalhes de rastreio para <strong>{formData.email}</strong>.
+                A tua encomenda de meias técnicas VYRO foi registada com sucesso. Enviámos os detalhes para <strong>{formData.email}</strong>.
               </p>
 
-              {/* Reference box */}
-              <div className="mt-6 p-4 rounded-2xl bg-neutral-50 border border-neutral-200 w-full max-w-sm text-left text-xs space-y-2">
+              {/* Multibanco Voucher Slip */}
+              {paymentMethod === 'multibanco' && easypayResult && (
+                <div className="mt-6 w-full max-w-sm rounded-2xl border-2 border-neutral-800 bg-white overflow-hidden shadow-lg animate-fade-rise text-left">
+                  <div className="bg-neutral-900 text-white px-4 py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-cyan-400" />
+                      <span className="font-bold text-xs uppercase tracking-wider">Dados de Pagamento Multibanco</span>
+                    </div>
+                    <span className="text-[10px] bg-neutral-800 text-neutral-300 px-2 py-0.5 rounded font-mono">
+                      easypay
+                    </span>
+                  </div>
+
+                  <div className="p-4 space-y-3 divide-y divide-neutral-100 text-xs">
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-neutral-500 font-medium">Entidade:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-sm text-black">
+                          {easypayResult.multibancoEntity || '21234'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(easypayResult.multibancoEntity || '21234', 'entity')}
+                          className="p-1 text-neutral-400 hover:text-black cursor-pointer"
+                          title="Copiar Entidade"
+                        >
+                          {copiedField === 'entity' ? (
+                            <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                      <span className="text-neutral-500 font-medium">Referência:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-sm text-black tracking-wider">
+                          {easypayResult.multibancoReference || '123 456 789'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(easypayResult.multibancoReference?.replace(/\s/g, '') || '123456789', 'ref')}
+                          className="p-1 text-neutral-400 hover:text-black cursor-pointer"
+                          title="Copiar Referência"
+                        >
+                          {copiedField === 'ref' ? (
+                            <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                      <span className="text-neutral-500 font-medium">Montante:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-sm text-emerald-600">
+                          €{finalTotal.toFixed(2)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(finalTotal.toFixed(2), 'amount')}
+                          className="p-1 text-neutral-400 hover:text-black cursor-pointer"
+                          title="Copiar Montante"
+                        >
+                          {copiedField === 'amount' ? (
+                            <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 text-[11px]">
+                      <span className="text-neutral-500">Validade:</span>
+                      <span className="text-amber-700 font-medium">
+                        {easypayResult.multibancoExpiration
+                          ? new Date(easypayResult.multibancoExpiration).toLocaleDateString('pt-PT')
+                          : '3 dias úteis'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="bg-neutral-50 px-4 py-2 border-t border-neutral-200 text-[10px] text-neutral-500 leading-tight">
+                    Homebanking / Caixa Multibanco &gt; Pagamentos &gt; Compras e Serviços.
+                  </div>
+                </div>
+              )}
+
+              {/* MB WAY prompt */}
+              {paymentMethod === 'mbway' && (
+                <div className="mt-5 p-4 rounded-2xl bg-cyan-50 border border-cyan-200 w-full max-w-sm text-left text-xs space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-cyan-900">
+                    <Smartphone className="w-4 h-4 text-cyan-600" />
+                    <span>Confirma na tua app MB WAY</span>
+                  </div>
+                  <p className="text-[11px] text-cyan-800 leading-relaxed">
+                    Enviámos o pedido de autorização de <strong>€{finalTotal.toFixed(2)}</strong> para o telemóvel <strong>{mbwayPhoneInput || formData.phone}</strong>. Abre a aplicação e aprova a compra.
+                  </p>
+                </div>
+              )}
+
+              {/* Order summary box */}
+              <div className="mt-5 p-4 rounded-2xl bg-neutral-50 border border-neutral-200 w-full max-w-sm text-left text-xs space-y-2">
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Referência do Pedido:</span>
                   <strong className="text-black">{orderNumber}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">Método de Pagamento:</span>
+                  <span className="text-black font-medium capitalize">
+                    {paymentMethod === 'mbway' ? 'MB WAY' : paymentMethod === 'multibanco' ? 'Multibanco' : 'Cartão de Crédito'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Método de Envio:</span>
@@ -516,7 +765,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                 </div>
               )}
 
-              <div className="flex items-center gap-3 mt-8">
+              <div className="flex items-center gap-3 mt-7">
                 {onViewOrders && (
                   <button
                     onClick={() => {

@@ -24,6 +24,7 @@ import {
   Zap,
   Mail,
   UserCheck,
+  Building2,
 } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useStore } from '../context/StoreContext';
@@ -79,6 +80,12 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
 
   const getOrderStatusBadge = (status: string) => {
     switch (status) {
+      case 'Pendente':
+        return {
+          bg: 'bg-amber-100 text-amber-900 border-amber-300 font-semibold',
+          icon: <Clock className="w-3 h-3 text-amber-700" />,
+          label: '⏱ Pendente (Aguard. Pagamento)',
+        };
       case 'Pago':
         return {
           bg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -547,6 +554,43 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
                             <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
                           </a>
                         )}
+                      </div>
+                    )}
+
+                    {/* Multibanco Payment slip if order is pending */}
+                    {order.multibancoReference && order.status === 'Pendente' && (
+                      <div className="mt-4 p-4 rounded-2xl bg-amber-50/80 border border-amber-300 text-xs text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <Building2 className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-full">
+                                Pagamento Multibanco
+                              </span>
+                              <span className="text-xs text-amber-800">Aguardando Pagamento</span>
+                            </div>
+                            <div className="mt-1 font-mono text-xs flex flex-wrap gap-x-4 gap-y-1">
+                              <span>Entidade: <strong>{order.multibancoEntity || '21234'}</strong></span>
+                              <span>Referência: <strong>{order.multibancoReference}</strong></span>
+                              <span>Montante: <strong>€{order.totalAmount.toFixed(2)}</strong></span>
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(
+                              `Entidade: ${order.multibancoEntity || '21234'}\nReferência: ${order.multibancoReference}\nMontante: €${order.totalAmount.toFixed(2)}`
+                            );
+                            setCopiedTrackingId(`mb_${order.id}`);
+                            setTimeout(() => setCopiedTrackingId(null), 2000);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-amber-200 hover:bg-amber-300 text-amber-950 font-semibold text-xs transition-colors shrink-0 cursor-pointer"
+                        >
+                          {copiedTrackingId === `mb_${order.id}` ? '✓ Copiado!' : 'Copiar Dados'}
+                        </button>
                       </div>
                     )}
 

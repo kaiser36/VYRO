@@ -56,11 +56,14 @@ import {
   XCircle,
   Clock,
   ThumbsUp,
+  Smartphone,
+  Building2,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useUser } from '../context/UserContext';
-import { GuaranteeBadge, ProductColor, LoyaltyGoal, LoyaltyReward, Product, Order } from '../types/store';
+import { GuaranteeBadge, ProductColor, LoyaltyGoal, LoyaltyReward, Product, Order, EasypaySettings } from '../types/store';
 import { testBrevoEmail, DEFAULT_BREVO_SETTINGS } from '../services/emailService';
+import { DEFAULT_EASYPAY_SETTINGS, testEasypayConnection } from '../services/easypayService';
 
 interface AdminPortalPageProps {
   onBackToStore: () => void;
@@ -113,6 +116,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     deleteLoyaltyGoal,
     updateReviewStatus,
     deleteReview,
+    updateEasypaySettings,
   } = useStore();
 
   const { users, updateUserPoints, assignCouponToUser } = useUser();
@@ -472,6 +476,57 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
   const [testEmailRecipient, setTestEmailRecipient] = useState('vyrosocks@gmail.com');
   const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
   const [testEmailStatus, setTestEmailStatus] = useState<{ success?: boolean; message?: string } | null>(null);
+
+  // Easypay Settings State
+  const [easypayAccountId, setEasypayAccountId] = useState(
+    storeSettings.easypaySettings?.accountId || DEFAULT_EASYPAY_SETTINGS.accountId
+  );
+  const [easypayApiKey, setEasypayApiKey] = useState(
+    storeSettings.easypaySettings?.apiKey || DEFAULT_EASYPAY_SETTINGS.apiKey
+  );
+  const [easypayEnvironment, setEasypayEnvironment] = useState<'test' | 'prod'>(
+    storeSettings.easypaySettings?.environment || DEFAULT_EASYPAY_SETTINGS.environment
+  );
+  const [easypayEnabled, setEasypayEnabled] = useState(
+    storeSettings.easypaySettings?.enabled ?? DEFAULT_EASYPAY_SETTINGS.enabled
+  );
+  const [easypayMethodMbway, setEasypayMethodMbway] = useState(
+    storeSettings.easypaySettings?.methods?.mbway ?? true
+  );
+  const [easypayMethodMultibanco, setEasypayMethodMultibanco] = useState(
+    storeSettings.easypaySettings?.methods?.multibanco ?? true
+  );
+  const [easypayMethodCard, setEasypayMethodCard] = useState(
+    storeSettings.easypaySettings?.methods?.card ?? true
+  );
+  const [isTestingEasypay, setIsTestingEasypay] = useState(false);
+  const [easypayTestStatus, setEasypayTestStatus] = useState<{ success?: boolean; message?: string } | null>(null);
+
+  const handleTestEasypayConnection = async () => {
+    setIsTestingEasypay(true);
+    setEasypayTestStatus(null);
+    try {
+      const res = await testEasypayConnection({
+        accountId: easypayAccountId.trim(),
+        apiKey: easypayApiKey.trim(),
+        environment: easypayEnvironment,
+        enabled: easypayEnabled,
+        methods: {
+          mbway: easypayMethodMbway,
+          multibanco: easypayMethodMultibanco,
+          card: easypayMethodCard,
+        },
+      });
+      setEasypayTestStatus(res);
+    } catch (err: any) {
+      setEasypayTestStatus({
+        success: false,
+        message: err.message || 'Erro inesperado ao testar a ligação à Easypay.',
+      });
+    } finally {
+      setIsTestingEasypay(false);
+    }
+  };
 
   const generateTrackingUrl = (carrier: string, code: string): string => {
     const clean = code.trim();
@@ -3344,6 +3399,242 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                   )}
                 </div>
               </div>
+
+              {/* SEÇÃO 6: GATEWAY DE PAGAMENTOS EASYPAY (PORTUGAL) */}
+              <div className="bg-neutral-900 text-white rounded-3xl p-6 sm:p-8 border border-neutral-800 relative overflow-hidden shadow-xl">
+                <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-6 relative z-10">
+                  <div>
+                    <div className="flex items-center gap-2 text-cyan-400 text-xs font-bold uppercase tracking-widest mb-1">
+                      <CreditCard className="w-4 h-4" />
+                      <span>Gateway de Pagamentos Nacional (Portugal)</span>
+                    </div>
+                    <h3 className="font-serif text-2xl text-white flex items-center gap-2.5">
+                      <span>Integração Easypay 2.0</span>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          easypayEnabled
+                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                            : 'bg-neutral-800 text-neutral-400 border border-neutral-700'
+                        }`}
+                      >
+                        {easypayEnabled ? (easypayEnvironment === 'prod' ? '✓ Ativo (Produção)' : '✓ Ativo (Sandbox)') : 'Desativado'}
+                      </span>
+                    </h3>
+                    <p className="text-xs text-neutral-400 mt-1 max-w-2xl">
+                      Processa pagamentos com segurança via Easypay API 2.0 por MB WAY, Referência Multibanco e Cartão de Crédito/Débito (Visa / Mastercard com 3D Secure).
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <a
+                      href="https://docs.easypay.pt/pt/docs"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Documentação Oficial</span>
+                    </a>
+
+                    <label className="flex items-center gap-3 cursor-pointer bg-white/5 hover:bg-white/10 px-4 py-2 rounded-2xl border border-white/10 transition-colors">
+                      <span className="text-xs font-semibold text-neutral-300">Easypay Ativa:</span>
+                      <input
+                        type="checkbox"
+                        checked={easypayEnabled}
+                        onChange={(e) => setEasypayEnabled(e.target.checked)}
+                        className="w-4 h-4 accent-cyan-400 rounded cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-cyan-400">{easypayEnabled ? 'Ligado' : 'Desligado'}</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 relative z-10 mb-6">
+                  {/* Environment selector */}
+                  <div>
+                    <label className="text-xs font-bold uppercase text-neutral-300 tracking-wider block mb-1.5">
+                      Ambiente da API
+                    </label>
+                    <select
+                      value={easypayEnvironment}
+                      onChange={(e) => setEasypayEnvironment(e.target.value as 'test' | 'prod')}
+                      className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-700 bg-neutral-950 text-white focus:outline-none focus:border-cyan-400 font-medium cursor-pointer"
+                    >
+                      <option value="test">Sandbox / Teste (api.test.easypay.pt)</option>
+                      <option value="prod">Produção (api.prod.easypay.pt)</option>
+                    </select>
+                    <span className="text-[10px] text-neutral-400 block mt-1">
+                      Usa Sandbox para testes antes de emitir cobranças reais.
+                    </span>
+                  </div>
+
+                  {/* Account ID */}
+                  <div>
+                    <label className="text-xs font-bold uppercase text-neutral-300 tracking-wider block mb-1.5 flex items-center justify-between">
+                      <span>Account ID (GUID)</span>
+                      <span className="text-[10px] text-neutral-400 font-mono">Backoffice Easypay</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={easypayAccountId}
+                      onChange={(e) => setEasypayAccountId(e.target.value)}
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-700 bg-neutral-950 text-white font-mono focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+
+                  {/* API Key */}
+                  <div>
+                    <label className="text-xs font-bold uppercase text-neutral-300 tracking-wider block mb-1.5 flex items-center justify-between">
+                      <span>API Key (Chave Secreta)</span>
+                      <span className="text-[10px] text-neutral-400 font-mono">Configuração API 2.0</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={easypayApiKey}
+                      onChange={(e) => setEasypayApiKey(e.target.value)}
+                      placeholder="Chave de API 2.0"
+                      className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-700 bg-neutral-950 text-white font-mono focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Payment methods checkboxes */}
+                <div className="p-4 rounded-2xl bg-neutral-950/60 border border-neutral-800 relative z-10 mb-6">
+                  <label className="text-xs font-bold uppercase text-neutral-300 tracking-wider block mb-2.5">
+                    Métodos de Pagamento Permitidos no Checkout
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <label className="flex items-center gap-2.5 p-3 rounded-xl border border-neutral-800 bg-neutral-900/60 hover:bg-neutral-900 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={easypayMethodMbway}
+                        onChange={(e) => setEasypayMethodMbway(e.target.checked)}
+                        className="w-4 h-4 accent-cyan-400 rounded cursor-pointer"
+                      />
+                      <div>
+                        <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>MB WAY</span>
+                        </div>
+                        <span className="text-[10px] text-neutral-400">Notificação push no telemóvel</span>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 p-3 rounded-xl border border-neutral-800 bg-neutral-900/60 hover:bg-neutral-900 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={easypayMethodMultibanco}
+                        onChange={(e) => setEasypayMethodMultibanco(e.target.checked)}
+                        className="w-4 h-4 accent-cyan-400 rounded cursor-pointer"
+                      />
+                      <div>
+                        <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>Multibanco</span>
+                        </div>
+                        <span className="text-[10px] text-neutral-400">Entidade & Referência (21234)</span>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 p-3 rounded-xl border border-neutral-800 bg-neutral-900/60 hover:bg-neutral-900 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={easypayMethodCard}
+                        onChange={(e) => setEasypayMethodCard(e.target.checked)}
+                        className="w-4 h-4 accent-cyan-400 rounded cursor-pointer"
+                      />
+                      <div>
+                        <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <CreditCard className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>Cartão de Crédito/Débito</span>
+                        </div>
+                        <span className="text-[10px] text-neutral-400">Visa / Mastercard 3D Secure</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Test connection and save */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-neutral-800 relative z-10">
+                  <button
+                    type="button"
+                    disabled={isTestingEasypay}
+                    onClick={handleTestEasypayConnection}
+                    className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isTestingEasypay ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>A Testar Conexão...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>Testar Ligação à Easypay</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateEasypaySettings({
+                        accountId: easypayAccountId.trim(),
+                        apiKey: easypayApiKey.trim(),
+                        environment: easypayEnvironment,
+                        enabled: easypayEnabled,
+                        methods: {
+                          mbway: easypayMethodMbway,
+                          multibanco: easypayMethodMultibanco,
+                          card: easypayMethodCard,
+                        },
+                      });
+                      showNotification('Configurações da Easypay guardadas com sucesso!');
+                    }}
+                    className="px-6 py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-black font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Guardar Configurações Easypay</span>
+                  </button>
+                </div>
+
+                {/* Diagnostic feedback */}
+                {easypayTestStatus && (
+                  <div
+                    className={`mt-4 p-3.5 rounded-xl text-xs font-semibold flex items-start gap-2.5 relative z-10 ${
+                      easypayTestStatus.success
+                        ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800'
+                        : 'bg-rose-950/80 text-rose-300 border border-rose-800'
+                    }`}
+                  >
+                    {easypayTestStatus.success ? (
+                      <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    ) : (
+                      <X className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    )}
+                    <div>
+                      <span>{easypayTestStatus.message}</span>
+                      {!easypayTestStatus.success && (
+                        <div className="text-[11px] text-rose-300/80 font-normal mt-1">
+                          Consulta a documentação em{' '}
+                          <a
+                            href="https://docs.easypay.pt/pt/docs"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline font-mono"
+                          >
+                            docs.easypay.pt
+                          </a>{' '}
+                          ou acede ao backoffice da Easypay (Menu <strong>Configuração API 2.0 &gt; Chaves</strong>) para obter o AccountId e ApiKey.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -4479,13 +4770,26 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                             </div>
                           </td>
                           <td className="p-4">
-                            <span className="uppercase font-semibold text-[10px] px-2.5 py-1 rounded-full bg-neutral-100 border border-neutral-200 text-neutral-700">
-                              {order.paymentMethod === 'mbway'
-                                ? 'MB WAY'
-                                : order.paymentMethod === 'multibanco'
-                                ? 'Multibanco'
-                                : 'Cartão'}
-                            </span>
+                            <div className="space-y-1">
+                              <span className="uppercase font-semibold text-[10px] px-2.5 py-1 rounded-full bg-neutral-100 border border-neutral-200 text-neutral-700 inline-block">
+                                {order.paymentMethod === 'mbway'
+                                  ? 'MB WAY'
+                                  : order.paymentMethod === 'multibanco'
+                                  ? 'Multibanco'
+                                  : 'Cartão'}
+                              </span>
+                              {order.multibancoReference && (
+                                <div className="text-[10px] font-mono text-neutral-600 bg-neutral-50 p-1.5 rounded border border-neutral-200/80">
+                                  <div>Ent: <strong className="text-black">{order.multibancoEntity || '21234'}</strong></div>
+                                  <div>Ref: <strong className="text-black">{order.multibancoReference}</strong></div>
+                                </div>
+                              )}
+                              {order.mbwayPhone && (
+                                <div className="text-[10px] font-mono text-cyan-800">
+                                  Tel: {order.mbwayPhone}
+                                </div>
+                              )}
+                            </div>
                           </td>
                           <td className="p-4 font-mono font-bold text-sm text-black">
                             €{order.totalAmount.toFixed(2)}
@@ -4514,6 +4818,8 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                                   className={`text-[11px] font-bold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none transition-colors ${
                                     order.status === 'Pago'
                                       ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                      : order.status === 'Pendente'
+                                      ? 'bg-amber-50 text-amber-900 border-amber-300'
                                       : order.status === 'Em Preparação'
                                       ? 'bg-amber-50 text-amber-800 border-amber-300'
                                       : order.status === 'Enviado - aguarda tracking'
@@ -4525,6 +4831,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                                       : 'bg-rose-50 text-rose-800 border-rose-300'
                                   }`}
                                 >
+                                  <option value="Pendente">⏱ Pendente (Aguard. Pagamento)</option>
                                   <option value="Pago">✓ Pago</option>
                                   <option value="Em Preparação">⏳ Em Preparação</option>
                                   <option value="Enviado - aguarda tracking">🚚 Enviado - aguarda tracking</option>

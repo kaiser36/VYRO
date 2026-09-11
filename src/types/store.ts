@@ -68,6 +68,19 @@ export interface BrevoSettings {
   enabled: boolean;
 }
 
+export interface EasypaySettings {
+  accountId: string;
+  apiKey: string;
+  environment: 'test' | 'prod';
+  enabled: boolean;
+  methods: {
+    mbway: boolean;
+    multibanco: boolean;
+    card: boolean;
+  };
+  autoCapture?: boolean;
+}
+
 export interface StoreSettings {
   freeShippingThreshold: number;
   shippingCost: number;
@@ -80,6 +93,7 @@ export interface StoreSettings {
   categoryBanner?: CategoryBannerSettings;
   automaticCoupons?: AutomaticCouponSettings;
   brevoSettings?: BrevoSettings;
+  easypaySettings?: EasypaySettings;
 }
 
 export interface OrderItem {
@@ -92,6 +106,7 @@ export interface OrderItem {
 }
 
 export type OrderStatus =
+  | 'Pendente'
   | 'Pago'
   | 'Em Preparação'
   | 'Enviado - aguarda tracking'
@@ -111,6 +126,13 @@ export interface Order {
   trackingNumber?: string;
   trackingCarrier?: string;
   trackingUrl?: string;
+  easypayPaymentId?: string;
+  easypayStatus?: 'pending' | 'authorized' | 'paid' | 'failed';
+  mbwayPhone?: string;
+  multibancoEntity?: string;
+  multibancoReference?: string;
+  multibancoExpiration?: string;
+  paymentUrl?: string;
   createdAt: string;
 }
 

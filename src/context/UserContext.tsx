@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, RegisterData, RedeemedVoucher } from '../types/user';
 import { LoyaltyReward } from '../types/store';
+import { useStore } from './StoreContext';
 
 interface UserContextType {
   currentUser: User | null;
@@ -48,7 +49,7 @@ const INITIAL_DEMO_USERS: User[] = [
       postalCode: '1250-142',
       country: 'Portugal',
     },
-    favoriteProductIds: ['vyro-ultralight-crew', 'vyro-trail-cushion-pro'],
+    favoriteProductIds: ['vyro-pro-stride-running', 'vyro-ultra-trail-mountain'],
     points: 420,
     tier: 'Silver Athlete',
     preferredSize: '39-42',
@@ -59,10 +60,21 @@ const INITIAL_DEMO_USERS: User[] = [
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { products } = useStore();
   const [users, setUsers] = useState<User[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.USERS);
-      return saved ? JSON.parse(saved) : INITIAL_DEMO_USERS;
+      const rawUsers: User[] = saved ? JSON.parse(saved) : INITIAL_DEMO_USERS;
+      return rawUsers.map((u) => {
+        const favs = u.favoriteProductIds || [];
+        const mappedFavs = favs.map((id) => {
+          if (id === 'vyro-ultralight-crew') return 'vyro-pro-stride-running';
+          if (id === 'vyro-trail-cushion-pro') return 'vyro-ultra-trail-mountain';
+          return id;
+        });
+        const uniqueFavs = Array.from(new Set(mappedFavs));
+        return { ...u, favoriteProductIds: uniqueFavs };
+      });
     } catch {
       return INITIAL_DEMO_USERS;
     }
@@ -78,7 +90,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const currentUser = users.find((u) => u.id === activeUserId) || null;
   const isAuthenticated = !!currentUser;
-  const favoritesCount = currentUser ? currentUser.favoriteProductIds.length : 0;
+  const favoritesCount = currentUser
+    ? currentUser.favoriteProductIds.filter((id) => products.some((p) => p.id === id)).length
+    : 0;
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));

@@ -54,7 +54,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useUser } from '../context/UserContext';
-import { GuaranteeBadge, ProductColor, LoyaltyGoal, LoyaltyReward } from '../types/store';
+import { GuaranteeBadge, ProductColor, LoyaltyGoal, LoyaltyReward, Product } from '../types/store';
 
 interface AdminPortalPageProps {
   onBackToStore: () => void;
@@ -144,6 +144,87 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
       setProdColors(storeSettings.availableColors.slice(0, 3));
     }
   }, [storeSettings.availableColors]);
+
+  // Quick Edit Sock State
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editProdName, setEditProdName] = useState('');
+  const [editProdTagline, setEditProdTagline] = useState('');
+  const [editProdCategory, setEditProdCategory] = useState('');
+  const [editProdPrice, setEditProdPrice] = useState('');
+  const [editProdOriginalPrice, setEditProdOriginalPrice] = useState('');
+  const [editProdDescription, setEditProdDescription] = useState('');
+  const [editProdFeatures, setEditProdFeatures] = useState('');
+  const [editProdMaterials, setEditProdMaterials] = useState('');
+  const [editProdBadge, setEditProdBadge] = useState('');
+  const [editProdSizes, setEditProdSizes] = useState<string[]>([]);
+  const [editProdColors, setEditProdColors] = useState<ProductColor[]>([]);
+  const [editProdImageUrl, setEditProdImageUrl] = useState('');
+  const [editProdInStock, setEditProdInStock] = useState(true);
+  const [editProdIsFeatured, setEditProdIsFeatured] = useState(false);
+
+  const handleStartEditProduct = (p: Product) => {
+    setEditingProduct(p);
+    setEditProdName(p.name);
+    setEditProdTagline(p.tagline || '');
+    setEditProdCategory(p.categoryId);
+    setEditProdPrice(p.price.toString());
+    setEditProdOriginalPrice(p.originalPrice ? p.originalPrice.toString() : '');
+    setEditProdDescription(p.description || '');
+    setEditProdFeatures((p.features || []).join('\n'));
+    setEditProdMaterials(p.materials || '');
+    setEditProdBadge(p.badge || '');
+    setEditProdSizes(p.sizes || ['39-42']);
+    setEditProdColors(p.colors || []);
+    setEditProdImageUrl(p.images[0] || PRESET_SOCKS_IMAGES[0]);
+    setEditProdInStock(p.inStock);
+    setEditProdIsFeatured(!!p.isFeatured);
+  };
+
+  const handleCloseEditProduct = () => {
+    setEditingProduct(null);
+  };
+
+  const toggleEditProdSize = (sz: string) => {
+    setEditProdSizes((prev) =>
+      prev.includes(sz) ? prev.filter((s) => s !== sz) : [...prev, sz]
+    );
+  };
+
+  const toggleEditProdColor = (col: ProductColor) => {
+    setEditProdColors((prev) => {
+      const exists = prev.some((c) => c.name === col.name);
+      return exists ? prev.filter((c) => c.name !== col.name) : [...prev, col];
+    });
+  };
+
+  const handleSaveEditProduct = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    if (!editProdName.trim() || !editProdPrice) return;
+
+    const selectedCatObj = categories.find((c) => c.id === editProdCategory) || categories[0];
+
+    updateProduct(editingProduct.id, {
+      name: editProdName.trim(),
+      tagline: editProdTagline.trim() || 'Alta performance e conforto biomecânico',
+      price: parseFloat(editProdPrice),
+      originalPrice: editProdOriginalPrice ? parseFloat(editProdOriginalPrice) : undefined,
+      categoryId: selectedCatObj.id,
+      categoryName: selectedCatObj.name,
+      description: editProdDescription.trim(),
+      features: editProdFeatures.split('\n').filter((f) => f.trim().length > 0),
+      materials: editProdMaterials.trim() || undefined,
+      sizes: editProdSizes.length > 0 ? editProdSizes : ['39-42'],
+      colors: editProdColors.length > 0 ? editProdColors : storeSettings.availableColors.slice(0, 3),
+      images: [editProdImageUrl, ...(editingProduct.images.slice(1))],
+      badge: editProdBadge.trim() || undefined,
+      inStock: editProdInStock,
+      isFeatured: editProdIsFeatured,
+    });
+
+    showNotification(`Meia "${editProdName}" atualizada com sucesso!`);
+    setEditingProduct(null);
+  };
 
   // Category Form & Edit State
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
@@ -1535,15 +1616,29 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                       {filteredProducts.map((p) => (
                         <tr key={p.id} className="hover:bg-neutral-50/80 transition-colors">
                           <td className="p-4 flex items-center gap-3.5">
-                            <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-neutral-200 shrink-0 border border-neutral-200">
+                            <div 
+                              onClick={() => handleStartEditProduct(p)}
+                              className="relative w-12 h-12 rounded-xl overflow-hidden bg-neutral-200 shrink-0 border border-neutral-200 cursor-pointer group"
+                              title="Clique para editar esta meia"
+                            >
                               <img
                                 src={p.images[0]}
                                 alt={p.name}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                               />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <Pencil className="w-4 h-4 text-white" />
+                              </div>
                             </div>
                             <div>
-                              <div className="font-bold text-sm text-black">{p.name}</div>
+                              <div 
+                                onClick={() => handleStartEditProduct(p)}
+                                className="font-bold text-sm text-black hover:text-cyan-600 cursor-pointer transition-colors flex items-center gap-1.5 group"
+                                title="Clique para editar esta meia"
+                              >
+                                <span>{p.name}</span>
+                                <Pencil className="w-3 h-3 text-neutral-300 group-hover:text-cyan-600 transition-colors" />
+                              </div>
                               <div className="text-[11px] text-neutral-400">{p.tagline}</div>
                               {p.sizes && p.sizes.length > 0 && (
                                 <div className="text-[10px] text-neutral-400 mt-0.5">
@@ -1612,18 +1707,30 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                             </button>
                           </td>
                           <td className="p-4 text-right">
-                            <button
-                              onClick={() => {
-                                if (confirm(`Tem a certeza que deseja eliminar "${p.name}"?`)) {
-                                  deleteProduct(p.id);
-                                  showNotification(`Produto "${p.name}" eliminado.`);
-                                }
-                              }}
-                              className="p-2 text-neutral-400 hover:text-red-600 transition-colors rounded-xl hover:bg-red-50 cursor-pointer"
-                              title="Eliminar Meia"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditProduct(p)}
+                                className="px-3 py-1.5 text-cyan-900 bg-cyan-50 hover:bg-cyan-100 transition-colors rounded-xl flex items-center gap-1.5 font-bold text-xs cursor-pointer border border-cyan-200/80 shadow-2xs hover:shadow-xs"
+                                title="Editar Meia"
+                              >
+                                <Pencil className="w-3.5 h-3.5 text-cyan-600" />
+                                <span>Editar</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (confirm(`Tem a certeza que deseja eliminar "${p.name}"?`)) {
+                                    deleteProduct(p.id);
+                                    showNotification(`Produto "${p.name}" eliminado.`);
+                                  }
+                                }}
+                                className="p-2 text-neutral-400 hover:text-red-600 transition-colors rounded-xl hover:bg-red-50 cursor-pointer"
+                                title="Eliminar Meia"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -3791,6 +3898,350 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
           )}
         </div>
       </main>
+
+      {/* QUICK EDIT SOCK MODAL */}
+      {editingProduct && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-neutral-200 overflow-hidden my-8 max-h-[92vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-5 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/70 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-cyan-100 text-cyan-800 flex items-center justify-center">
+                  <Pencil className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-cyan-600 text-white">
+                      Editar Meia
+                    </span>
+                    <span className="text-xs text-neutral-400 font-mono">ID: {editingProduct.id}</span>
+                  </div>
+                  <h3 className="text-lg font-serif font-bold text-black mt-0.5 truncate max-w-md">
+                    {editingProduct.name}
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseEditProduct}
+                className="p-2 text-neutral-400 hover:text-black rounded-xl hover:bg-neutral-200/60 transition-colors cursor-pointer"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Form Body */}
+            <form id="edit-sock-form" onSubmit={handleSaveEditProduct} className="p-6 overflow-y-auto space-y-6 flex-1">
+              {/* Quick Info & Image Preview Row */}
+              <div className="flex flex-col sm:flex-row items-start gap-4 p-4 rounded-2xl bg-neutral-50 border border-neutral-200/80">
+                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-neutral-200 border border-neutral-300 shrink-0">
+                  <img
+                    src={editProdImageUrl || editingProduct.images[0]}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <div className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
+                    Fotografia Principal da Meia
+                  </div>
+                  <input
+                    type="url"
+                    required
+                    placeholder="https://images.unsplash.com/..."
+                    value={editProdImageUrl}
+                    onChange={(e) => setEditProdImageUrl(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black font-mono"
+                  />
+                  <div className="pt-2">
+                    <span className="text-[11px] text-neutral-500 font-semibold block mb-1.5">
+                      Ou selecione uma foto de meia com 1 clique:
+                    </span>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {PRESET_SOCKS_IMAGES.map((img, idx) => (
+                        <button
+                          type="button"
+                          key={idx}
+                          onClick={() => setEditProdImageUrl(img)}
+                          className={`relative w-12 h-12 rounded-lg overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
+                            editProdImageUrl === img
+                              ? 'border-cyan-500 ring-2 ring-cyan-200 scale-105'
+                              : 'border-neutral-200 opacity-60 hover:opacity-100'
+                          }`}
+                        >
+                          <img src={img} alt="preset" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Main Attributes Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
+                    Nome da Meia *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editProdName}
+                    onChange={(e) => setEditProdName(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
+                    Subtítulo / Tagline
+                  </label>
+                  <input
+                    type="text"
+                    value={editProdTagline}
+                    onChange={(e) => setEditProdTagline(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
+                    Categoria *
+                  </label>
+                  <select
+                    value={editProdCategory}
+                    onChange={(e) => setEditProdCategory(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black cursor-pointer font-medium"
+                  >
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
+                    Badge de Destaque
+                  </label>
+                  <div className="flex flex-wrap gap-1 mb-1.5">
+                    {storeSettings.availableBadges.map((b) => (
+                      <button
+                        type="button"
+                        key={b}
+                        onClick={() => setEditProdBadge(editProdBadge === b ? '' : b)}
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                          editProdBadge === b
+                            ? 'bg-black text-white shadow-xs'
+                            : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                        }`}
+                      >
+                        {b}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Sem badge ou badge personalizada..."
+                    value={editProdBadge}
+                    onChange={(e) => setEditProdBadge(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
+                    Preço de Venda (€) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.10"
+                    required
+                    value={editProdPrice}
+                    onChange={(e) => setEditProdPrice(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black font-bold font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
+                    Preço Original / Antes (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.10"
+                    placeholder="Opcional (ex: 24.90)"
+                    value={editProdOriginalPrice}
+                    onChange={(e) => setEditProdOriginalPrice(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Status Toggles: Stock & Home Featured */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div className="p-3.5 rounded-2xl border border-neutral-200 flex items-center justify-between gap-3 bg-neutral-50/60">
+                  <div>
+                    <span className="text-xs font-bold text-neutral-800 block">Disponibilidade de Stock</span>
+                    <span className="text-[11px] text-neutral-500">
+                      {editProdInStock ? 'A meia está visível e disponível para compra' : 'Aparece como Esgotada na loja'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditProdInStock(!editProdInStock)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      editProdInStock
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-rose-600 text-white shadow-xs'
+                    }`}
+                  >
+                    {editProdInStock ? 'Em Stock ✓' : 'Esgotado ✕'}
+                  </button>
+                </div>
+
+                <div className="p-3.5 rounded-2xl border border-amber-200 flex items-center justify-between gap-3 bg-amber-50/50">
+                  <div className="flex items-center gap-2">
+                    <Star className="w-4 h-4 fill-amber-500 text-amber-500 shrink-0" />
+                    <div>
+                      <span className="text-xs font-bold text-amber-950 block">Destaque na Home</span>
+                      <span className="text-[11px] text-amber-800/80">Exibir no bloco pós-Hero</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditProdIsFeatured(!editProdIsFeatured)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      editProdIsFeatured
+                        ? 'bg-amber-500 text-white shadow-xs'
+                        : 'bg-white border border-amber-300 text-amber-900'
+                    }`}
+                  >
+                    {editProdIsFeatured ? 'Destacada ★' : 'Não Destacada'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Sizes Selection */}
+              <div>
+                <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-2">
+                  Tamanhos Disponíveis
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {storeSettings.availableSizes.map((sz) => (
+                    <button
+                      type="button"
+                      key={sz}
+                      onClick={() => toggleEditProdSize(sz)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        editProdSizes.includes(sz)
+                          ? 'bg-black text-white border-black shadow-xs'
+                          : 'bg-neutral-50 text-neutral-600 border-neutral-300 hover:border-neutral-400'
+                      }`}
+                    >
+                      {sz} {editProdSizes.includes(sz) ? '✓' : ''}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Colors Selection */}
+              <div>
+                <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-2">
+                  Cores Ativas Deste Modelo
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {storeSettings.availableColors.map((col) => {
+                    const isSelected = editProdColors.some((c) => c.name === col.name);
+                    return (
+                      <button
+                        type="button"
+                        key={col.name}
+                        onClick={() => toggleEditProdColor(col)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-black bg-neutral-100 ring-2 ring-black/20 font-bold'
+                            : 'border-neutral-200 text-neutral-600 hover:border-neutral-400'
+                        }`}
+                      >
+                        <span
+                          className="w-3 h-3 rounded-full border border-black/20 shrink-0"
+                          style={{ backgroundColor: col.hex }}
+                        />
+                        <span>{col.name}</span>
+                        {isSelected && <span className="text-black font-bold">✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Composition */}
+              <div>
+                <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
+                  Composição / Materiais
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: 70% Poliamida Q-Skin, 20% CoolMax, 10% Elastano"
+                  value={editProdMaterials}
+                  onChange={(e) => setEditProdMaterials(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
+                />
+              </div>
+
+              {/* Description & Features */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
+                    Descrição Detalhada
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={editProdDescription}
+                    onChange={(e) => setEditProdDescription(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
+                    Especificações Técnicas (1 por linha)
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={editProdFeatures}
+                    onChange={(e) => setEditProdFeatures(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black font-mono text-[11px]"
+                  />
+                </div>
+              </div>
+            </form>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-neutral-100 flex items-center justify-between bg-neutral-50 shrink-0">
+              <button
+                type="button"
+                onClick={handleCloseEditProduct}
+                className="px-5 py-2.5 rounded-xl border border-neutral-300 text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="submit"
+                form="edit-sock-form"
+                className="px-6 py-2.5 rounded-xl bg-black text-white text-xs font-bold hover:bg-neutral-800 transition-all flex items-center gap-2 cursor-pointer shadow-md"
+              >
+                <Check className="w-4 h-4 text-emerald-400" />
+                <span>Guardar Alterações da Meia</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

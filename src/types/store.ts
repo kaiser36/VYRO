@@ -44,6 +44,16 @@ export interface LoyaltySettings {
   goals: LoyaltyGoal[];
 }
 
+export interface CategoryBannerSettings {
+  enabled: boolean;
+  categoryId: string;
+  title: string;
+  subtitle: string;
+  badge?: string;
+  buttonText: string;
+  imageUrl: string;
+}
+
 export interface StoreSettings {
   freeShippingThreshold: number;
   shippingCost: number;
@@ -53,6 +63,7 @@ export interface StoreSettings {
   availableColors: ProductColor[];
   guaranteeBadges: GuaranteeBadge[];
   loyaltySettings: LoyaltySettings;
+  categoryBanner?: CategoryBannerSettings;
 }
 
 export interface OrderItem {

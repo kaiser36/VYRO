@@ -5,6 +5,7 @@ import { UserProvider, useUser } from './context/UserContext';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { FeaturedProductsSection } from './components/FeaturedProductsSection';
+import { CategorySpotlightSection } from './components/CategorySpotlightSection';
 import { ProductCatalog } from './components/ProductCatalog';
 import { TechSection } from './components/TechSection';
 import { Footer } from './components/Footer';
@@ -190,6 +191,10 @@ const MainAppContent: React.FC = () => {
             onRequireAuth={() => handleOpenAuth('login')}
             onOpenAdmin={handleOpenAdmin}
             onExploreAll={scrollToCatalog}
+          />
+          <CategorySpotlightSection
+            onSelectCategory={handleSelectCategory}
+            onOpenAdmin={handleOpenAdmin}
           />
           <ProductCatalog
             onQuickView={handleOpenProductDetail}

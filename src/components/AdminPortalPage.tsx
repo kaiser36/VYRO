@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
+  ArrowRight,
   Plus,
   Trash2,
   FolderPlus,
@@ -44,6 +45,9 @@ import {
   Mail,
   UserCheck,
   Star,
+  Upload,
+  Image as ImageIcon,
+  ExternalLink,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useUser } from '../context/UserContext';
@@ -79,6 +83,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     updateCategory,
     deleteCategory,
     updateStoreSettings,
+    updateCategoryBanner,
     updateGuaranteeBadge,
     addGuaranteeBadge,
     deleteGuaranteeBadge,
@@ -141,6 +146,36 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
   const [catName, setCatName] = useState('');
   const [catSlug, setCatSlug] = useState('');
   const [catDescription, setCatDescription] = useState('');
+
+  // Categories Sub-Tab State ('banner' | 'manage')
+  const [categoriesSubTab, setCategoriesSubTab] = useState<'banner' | 'manage'>('banner');
+
+  // Category Banner Form State
+  const [bannerEnabled, setBannerEnabled] = useState(storeSettings.categoryBanner?.enabled ?? true);
+  const [bannerCategoryId, setBannerCategoryId] = useState(storeSettings.categoryBanner?.categoryId || categories[0]?.id || '');
+  const [bannerTitle, setBannerTitle] = useState(storeSettings.categoryBanner?.title || '');
+  const [bannerSubtitle, setBannerSubtitle] = useState(storeSettings.categoryBanner?.subtitle || '');
+  const [bannerBadge, setBannerBadge] = useState(storeSettings.categoryBanner?.badge || 'Linha em Destaque');
+  const [bannerButtonText, setBannerButtonText] = useState(storeSettings.categoryBanner?.buttonText || 'Explorar Coleção');
+  const [bannerImageUrl, setBannerImageUrl] = useState(
+    storeSettings.categoryBanner?.imageUrl ||
+      'https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?w=1200&auto=format&fit=crop&q=80'
+  );
+
+  useEffect(() => {
+    if (storeSettings.categoryBanner) {
+      setBannerEnabled(storeSettings.categoryBanner.enabled);
+      setBannerCategoryId(storeSettings.categoryBanner.categoryId || categories[0]?.id || '');
+      setBannerTitle(storeSettings.categoryBanner.title || '');
+      setBannerSubtitle(storeSettings.categoryBanner.subtitle || '');
+      setBannerBadge(storeSettings.categoryBanner.badge || 'Linha em Destaque');
+      setBannerButtonText(storeSettings.categoryBanner.buttonText || 'Explorar Coleção');
+      setBannerImageUrl(
+        storeSettings.categoryBanner.imageUrl ||
+          'https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?w=1200&auto=format&fit=crop&q=80'
+      );
+    }
+  }, [storeSettings.categoryBanner]);
 
   // Store Settings Form State
   const [newBadgeInput, setNewBadgeInput] = useState('');
@@ -426,6 +461,76 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     }
   };
 
+  const BANNER_PRESET_IMAGES = [
+    {
+      label: 'Running / Estrada',
+      url: 'https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?w=1200&auto=format&fit=crop&q=80',
+    },
+    {
+      label: 'Ciclismo Aero',
+      url: 'https://images.unsplash.com/photo-1582966772680-860e372bb558?w=1200&auto=format&fit=crop&q=80',
+    },
+    {
+      label: 'Trail / Montanha',
+      url: 'https://images.unsplash.com/photo-1576672843344-f01907a9d40c?w=1200&auto=format&fit=crop&q=80',
+    },
+    {
+      label: 'Compressão / Recovery',
+      url: 'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=1200&auto=format&fit=crop&q=80',
+    },
+    {
+      label: 'Estúdio / Daily Active',
+      url: 'https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=1200&auto=format&fit=crop&q=80',
+    },
+    {
+      label: 'Velocidade / Pista',
+      url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1200&auto=format&fit=crop&q=80',
+    },
+  ];
+
+  const handleBannerFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert('A imagem é demasiado grande. Por favor escolha um ficheiro até 2MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setBannerImageUrl(reader.result);
+          showNotification('Imagem carregada com sucesso para o banner!');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSelectCategoryForBanner = (catId: string) => {
+    setBannerCategoryId(catId);
+    const cat = categories.find((c) => c.id === catId);
+    if (cat) {
+      setBannerTitle(cat.name + ' de Alta Performance');
+      setBannerSubtitle(cat.description);
+      setBannerButtonText('Ver Meias de ' + cat.name);
+      setBannerBadge('Linha em Destaque');
+    }
+  };
+
+  const handleSaveBanner = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateCategoryBanner({
+      enabled: bannerEnabled,
+      categoryId: bannerCategoryId,
+      title: bannerTitle,
+      subtitle: bannerSubtitle,
+      badge: bannerBadge,
+      buttonText: bannerButtonText,
+      imageUrl: bannerImageUrl,
+    });
+    showNotification('Banner de Categoria em Destaque guardado com sucesso!');
+  };
+
   const toggleSize = (size: string) => {
     if (prodSizes.includes(size)) {
       setProdSizes(prodSizes.filter((s) => s !== size));
@@ -652,7 +757,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
             }`}
           >
             <FolderPlus className="w-4 h-4 text-cyan-400" />
-            <span>Gerir Categorias ({categories.length})</span>
+            <span>Categorias & Banner ({categories.length})</span>
           </button>
 
           {/* NEW TAB: STORE SETTINGS & SOCK OPTIONS */}
@@ -1492,18 +1597,294 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
             </div>
           )}
 
-          {/* TAB 3: CATEGORIES (GERIR, CRIAR, EDITAR E APAGAR) */}
+          {/* TAB 3: CATEGORIES & BANNER */}
           {activeTab === 'categories' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              {/* Form to create or edit category (5 cols) */}
-              <div
-                id="category-form"
-                className={`lg:col-span-5 p-6 sm:p-8 rounded-3xl border transition-all ${
-                  editingCategoryId
-                    ? 'bg-cyan-50/40 border-cyan-300 ring-2 ring-cyan-100 shadow-md'
-                    : 'bg-neutral-50 border-neutral-200'
-                }`}
-              >
+            <div className="space-y-8">
+              {/* Categories Sub-Tabs Navigation */}
+              <div className="flex flex-wrap items-center gap-3 border-b border-neutral-100 pb-4">
+                <button
+                  type="button"
+                  onClick={() => setCategoriesSubTab('banner')}
+                  className={`flex items-center gap-2 py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    categoriesSubTab === 'banner'
+                      ? 'bg-black text-white shadow-sm'
+                      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-black'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Banner de Destaque da Categoria (Acima do Catálogo)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCategoriesSubTab('manage')}
+                  className={`flex items-center gap-2 py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    categoriesSubTab === 'manage'
+                      ? 'bg-black text-white shadow-sm'
+                      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-black'
+                  }`}
+                >
+                  <FolderPlus className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Gerir Categorias da Loja ({categories.length})</span>
+                </button>
+              </div>
+
+              {/* SUB-TAB 1: BANNER DESTAQUE CATEGORIA */}
+              {categoriesSubTab === 'banner' && (
+                <div className="space-y-8">
+                  {/* Header */}
+                  <div className="border-b border-neutral-100 pb-4">
+                    <div className="flex items-center gap-2 text-cyan-600 font-bold text-xs uppercase tracking-wider mb-1">
+                      <Sparkles className="w-4 h-4" />
+                      <span>Bloco Promocional de Categoria</span>
+                    </div>
+                    <h2 className="font-serif text-3xl sm:text-4xl text-black">
+                      Banner de Destaque da Categoria
+                    </h2>
+                    <p className="text-xs text-[#6F6F6F] mt-1 max-w-2xl">
+                      Este bloco aparece na página inicial <strong>imediatamente acima de "Engenharia Para os Teus Pés"</strong>. Permite destacar uma modalidade/categoria específica, alterar os textos, carregar uma imagem exclusiva e direcionar o utilizador com 1 clique para as meias dessa categoria.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    {/* Form (7 cols) */}
+                    <form onSubmit={handleSaveBanner} className="lg:col-span-7 space-y-6 bg-neutral-50 p-6 sm:p-8 rounded-3xl border border-neutral-200">
+                      {/* Enable/Disable Toggle */}
+                      <div className="p-4 rounded-2xl bg-white border border-neutral-200 shadow-xs flex items-center justify-between gap-4">
+                        <div>
+                          <div className="text-xs font-bold text-black flex items-center gap-2">
+                            <span>Exibir Bloco de Destaque na Página Inicial</span>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${bannerEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-neutral-100 text-neutral-500'}`}>
+                              {bannerEnabled ? 'Ativo' : 'Oculto'}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-neutral-500 mt-0.5">
+                            Se desativado, o bloco fica temporariamente oculto no site sem perder as configurações guardadas.
+                          </div>
+                        </div>
+
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={bannerEnabled}
+                            onChange={(e) => setBannerEnabled(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                        </label>
+                      </div>
+
+                      {/* Category Selection */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block">
+                            Categoria a Destacar *
+                          </label>
+                          <span className="text-[11px] text-cyan-700 font-semibold">
+                            Ao clicar no botão, filtra por esta categoria
+                          </span>
+                        </div>
+                        <select
+                          value={bannerCategoryId}
+                          onChange={(e) => handleSelectCategoryForBanner(e.target.value)}
+                          className="w-full px-4 py-2.5 text-xs border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black font-semibold text-neutral-800 cursor-pointer"
+                        >
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name} ({products.filter((p) => p.categoryId === c.id).length} modelos disponíveis)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Title & Badge */}
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                        <div className="sm:col-span-8">
+                          <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
+                            Título Principal do Bloco *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Ex: Running & Maratona de Alta Performance"
+                            value={bannerTitle}
+                            onChange={(e) => setBannerTitle(e.target.value)}
+                            className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-4">
+                          <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
+                            Etiqueta / Badge
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ex: Linha em Destaque"
+                            value={bannerBadge}
+                            onChange={(e) => setBannerBadge(e.target.value)}
+                            className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Subtitle / Description */}
+                      <div>
+                        <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
+                          Descrição / Texto Explicativo da Categoria *
+                        </label>
+                        <textarea
+                          rows={3}
+                          required
+                          placeholder="Explica a tecnologia, amortecimento e benefícios desta categoria de meias..."
+                          value={bannerSubtitle}
+                          onChange={(e) => setBannerSubtitle(e.target.value)}
+                          className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black leading-relaxed"
+                        />
+                      </div>
+
+                      {/* Button Text */}
+                      <div>
+                        <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1">
+                          Texto do Botão de Ação (CTA) *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ex: Ver Meias de Running"
+                          value={bannerButtonText}
+                          onChange={(e) => setBannerButtonText(e.target.value)}
+                          className="w-full px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black font-medium"
+                        />
+                      </div>
+
+                      {/* Image Upload & Presets Section */}
+                      <div className="space-y-3 pt-2 border-t border-neutral-200">
+                        <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block">
+                          Imagem da Categoria
+                        </label>
+
+                        {/* URL input and upload button */}
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <input
+                            type="text"
+                            placeholder="URL da imagem (https://...)"
+                            value={bannerImageUrl}
+                            onChange={(e) => setBannerImageUrl(e.target.value)}
+                            className="flex-1 px-3.5 py-2.5 text-xs border rounded-xl border-neutral-300 bg-white focus:outline-none focus:border-black"
+                          />
+
+                          <label className="px-4 py-2.5 rounded-xl bg-white border border-neutral-300 hover:border-black text-neutral-800 hover:text-black text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs shrink-0">
+                            <Upload className="w-3.5 h-3.5 text-cyan-600" />
+                            <span>Carregar do Computador</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleBannerFileUpload}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+
+                        {/* Presets Gallery */}
+                        <div>
+                          <span className="text-[11px] text-neutral-500 font-semibold block mb-2">
+                            Ou escolhe uma imagem desportiva recomendada:
+                          </span>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {BANNER_PRESET_IMAGES.map((preset, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => setBannerImageUrl(preset.url)}
+                                className={`flex items-center gap-2 p-1.5 rounded-xl border text-left text-[11px] font-medium transition-all cursor-pointer ${
+                                  bannerImageUrl === preset.url
+                                    ? 'border-cyan-500 bg-cyan-50/50 text-black ring-2 ring-cyan-200'
+                                    : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300'
+                                }`}
+                              >
+                                <img
+                                  src={preset.url}
+                                  alt={preset.label}
+                                  className="w-8 h-8 rounded-lg object-cover shrink-0"
+                                />
+                                <span className="truncate">{preset.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Submit */}
+                      <div className="pt-4 border-t border-neutral-200 flex justify-end">
+                        <button
+                          type="submit"
+                          className="px-8 py-3.5 rounded-full bg-black text-white text-xs font-bold hover:bg-neutral-800 transition-all shadow-md flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-95"
+                        >
+                          <Check className="w-4 h-4 text-cyan-400" />
+                          <span>Guardar Alterações do Banner</span>
+                        </button>
+                      </div>
+                    </form>
+
+                    {/* Live Preview (5 cols) */}
+                    <div className="lg:col-span-5 space-y-3">
+                      <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-neutral-500">
+                        <span>Pré-visualização em Tempo Real</span>
+                        <span className="text-[11px] text-cyan-700 font-normal">Ao vivo</span>
+                      </div>
+
+                      <div className="bg-neutral-950 text-white rounded-3xl p-6 border border-neutral-800 shadow-xl space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 text-[10px] font-bold uppercase tracking-wider border border-cyan-400/30">
+                            {bannerBadge || 'Categoria em Foco'}
+                          </span>
+                          <span className="text-[10px] text-neutral-400">
+                            {categories.find((c) => c.id === bannerCategoryId)?.name || 'Categoria'}
+                          </span>
+                        </div>
+
+                        <div className="aspect-[16/10] w-full rounded-2xl overflow-hidden bg-neutral-900 border border-neutral-800 relative">
+                          <img
+                            src={bannerImageUrl}
+                            alt="Pré-visualização"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-transparent to-transparent" />
+                        </div>
+
+                        <h4 className="font-serif text-2xl text-white font-normal leading-tight">
+                          {bannerTitle || 'Título da Categoria'}
+                        </h4>
+
+                        <p className="text-xs text-neutral-300 leading-relaxed">
+                          {bannerSubtitle || 'Descrição explicativa da categoria...'}
+                        </p>
+
+                        <button
+                          type="button"
+                          className="w-full py-3 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400 text-black font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-cyan-500/20"
+                        >
+                          <span>{bannerButtonText || 'Explorar Coleção'}</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SUB-TAB 2: GERIR CATEGORIAS */}
+              {categoriesSubTab === 'manage' && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  {/* Form to create or edit category (5 cols) */}
+                  <div
+                    id="category-form"
+                    className={`lg:col-span-5 p-6 sm:p-8 rounded-3xl border transition-all ${
+                      editingCategoryId
+                        ? 'bg-cyan-50/40 border-cyan-300 ring-2 ring-cyan-100 shadow-md'
+                        : 'bg-neutral-50 border-neutral-200'
+                    }`}
+                  >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     {editingCategoryId ? (
@@ -1695,6 +2076,8 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
               </div>
             </div>
           )}
+        </div>
+      )}
 
           {/* TAB 4: STORE SETTINGS & SOCK DETAIL OPTIONS (NOVA ÁREA) */}
           {activeTab === 'settings' && (

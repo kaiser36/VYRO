@@ -9,6 +9,7 @@ import {
   LoyaltyReward,
   LoyaltyGoal,
   LoyaltySettings,
+  CategoryBannerSettings,
 } from '../types/store';
 import { INITIAL_CATEGORIES, INITIAL_ORDERS, INITIAL_PRODUCTS } from '../data/initialData';
 
@@ -186,6 +187,15 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
       },
     ],
   },
+  categoryBanner: {
+    enabled: true,
+    categoryId: 'cat-running',
+    title: 'Running & Maratona de Alta Performance',
+    subtitle: 'Amortecimento anatómico zonal, sistema anti-fricção ZeroBlister™ e ventilação ultra-ativa concebida para superar qualquer distância.',
+    badge: 'Linha em Destaque',
+    buttonText: 'Explorar Meias de Running',
+    imageUrl: 'https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?w=1200&auto=format&fit=crop&q=80',
+  },
 };
 
 interface StoreContextType {
@@ -205,6 +215,7 @@ interface StoreContextType {
   deleteCategory: (id: string) => void;
   addOrder: (orderData: Omit<Order, 'id' | 'createdAt'>) => Order;
   updateStoreSettings: (newSettings: Partial<StoreSettings>) => void;
+  updateCategoryBanner: (bannerData: Partial<CategoryBannerSettings>) => void;
   updateGuaranteeBadge: (id: string, badgeData: Partial<GuaranteeBadge>) => void;
   addGuaranteeBadge: (badgeData: Omit<GuaranteeBadge, 'id'>) => void;
   deleteGuaranteeBadge: (id: string) => void;
@@ -292,6 +303,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               parsed.loyaltySettings?.goals && parsed.loyaltySettings.goals.length > 0
                 ? parsed.loyaltySettings.goals
                 : DEFAULT_STORE_SETTINGS.loyaltySettings.goals,
+          },
+          categoryBanner: {
+            ...DEFAULT_STORE_SETTINGS.categoryBanner!,
+            ...(parsed.categoryBanner || {}),
           },
         };
       }
@@ -409,6 +424,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setStoreSettings((prev) => ({
       ...prev,
       ...newSettings,
+    }));
+  };
+
+  const updateCategoryBanner = (bannerData: Partial<CategoryBannerSettings>) => {
+    setStoreSettings((prev) => ({
+      ...prev,
+      categoryBanner: {
+        ...(prev.categoryBanner || DEFAULT_STORE_SETTINGS.categoryBanner!),
+        ...bannerData,
+      },
     }));
   };
 
@@ -600,6 +625,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deleteCategory,
         addOrder,
         updateStoreSettings,
+        updateCategoryBanner,
         updateGuaranteeBadge,
         addGuaranteeBadge,
         deleteGuaranteeBadge,

@@ -2020,16 +2020,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                             </button>
                           </td>
                           <td className="p-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleStartEditProduct(p)}
-                                className="px-3 py-1.5 text-cyan-900 bg-cyan-50 hover:bg-cyan-100 transition-colors rounded-xl flex items-center gap-1.5 font-bold text-xs cursor-pointer border border-cyan-200/80 shadow-2xs hover:shadow-xs"
-                                title="Editar Meia"
-                              >
-                                <Pencil className="w-3.5 h-3.5 text-cyan-600" />
-                                <span>Editar</span>
-                              </button>
+                            <div className="flex items-center justify-end">
                               <button
                                 type="button"
                                 onClick={() => {

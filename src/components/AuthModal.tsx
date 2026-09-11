@@ -63,7 +63,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(false);
 
     if (res.success) {
-      setSuccessMessage('Conta criada! +100 Pontos VYRO creditados!');
+      setSuccessMessage('Conta criada com sucesso!');
       setTimeout(() => {
         setSuccessMessage(null);
         onClose();
@@ -113,8 +113,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </h3>
           <p className="text-xs text-neutral-400 mt-1">
             {tab === 'login'
-              ? 'Acede aos teus favoritos, histórico de compras e pontos.'
-              : 'Ganha 100 pontos imediatos, acesso a edições limitadas e checkout expresso.'}
+              ? 'Acede aos teus favoritos, histórico de compras e cupões de desconto.'
+              : 'Acesso a cupões de desconto exclusivos, edições limitadas e checkout expresso.'}
           </p>
 
           {/* Tab Switcher */}
@@ -145,7 +145,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   : 'text-neutral-400 hover:text-white'
               }`}
             >
-              Criar Conta (+100 Pts)
+              Criar Conta
             </button>
           </div>
         </div>
@@ -311,7 +311,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <div className="p-2.5 bg-cyan-50/70 border border-cyan-200/70 rounded-xl flex items-center gap-2 text-[11px] text-cyan-900">
                 <Sparkles className="w-3.5 h-3.5 text-cyan-600 flex-shrink-0" />
-                <span>Recebe logo <strong>100 Pontos VYRO</strong> no teu primeiro acesso!</span>
+                <span>Acesso imediato a <strong>cupões de desconto</strong> e novidades exclusivas!</span>
               </div>
 
               <button
@@ -319,7 +319,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 disabled={loading}
                 className="w-full py-3 bg-gradient-to-r from-neutral-900 to-black hover:from-black hover:to-neutral-950 text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
               >
-                <span>{loading ? 'A criar conta...' : 'Criar Conta & Ganhar 100 Pts'}</span>
+                <span>{loading ? 'A criar conta...' : 'Criar Conta'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>

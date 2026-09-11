@@ -145,12 +145,14 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
               </div>
             </div>
 
-            {/* Actions: Points badge & Logout */}
+            {/* Actions: Coupons badge & Logout */}
             <div className="flex items-center gap-3 self-end sm:self-auto">
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 text-xs">
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                <span className="text-neutral-300">Saldo:</span>
-                <span className="font-bold text-cyan-400">{currentUser.points || 0} pts</span>
+                <Ticket className="w-4 h-4 text-cyan-400" />
+                <span className="text-neutral-300">Cupões:</span>
+                <span className="font-bold text-cyan-400">
+                  {((currentUser.redeemedVouchers as any[]) || []).filter((v) => !v.isUsed).length}
+                </span>
               </div>
 
               <button
@@ -218,18 +220,6 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
             </button>
 
             <button
-              onClick={() => setActiveTab('rewards')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap cursor-pointer ${
-                activeTab === 'rewards'
-                  ? 'bg-white text-black shadow-md'
-                  : 'text-neutral-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Gift className="w-4 h-4" />
-              <span>Clube VYRO</span>
-            </button>
-
-            <button
               onClick={() => setActiveTab('coupons')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'coupons'
@@ -271,23 +261,31 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
                 </div>
               </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-neutral-200/80 shadow-xs flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
-                  <Sparkles className="w-6 h-6" />
+              <div 
+                onClick={() => setActiveTab('coupons')}
+                className="bg-white p-5 rounded-2xl border border-neutral-200/80 shadow-xs flex items-center gap-4 cursor-pointer hover:border-purple-300 transition-all"
+              >
+                <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
+                  <Ticket className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-xs text-neutral-500 font-medium">Pontos VYRO</p>
-                  <p className="text-2xl font-serif font-bold text-black">{currentUser.points || 0}</p>
+                  <p className="text-xs text-neutral-500 font-medium">Cupões Disponíveis</p>
+                  <p className="text-2xl font-serif font-bold text-black">
+                    {((currentUser.redeemedVouchers as any[]) || []).filter((v) => !v.isUsed).length}
+                  </p>
                 </div>
               </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-neutral-200/80 shadow-xs flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
-                  <Award className="w-6 h-6" />
+              <div 
+                onClick={() => setActiveTab('orders')}
+                className="bg-white p-5 rounded-2xl border border-neutral-200/80 shadow-xs flex items-center gap-4 cursor-pointer hover:border-emerald-300 transition-all"
+              >
+                <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                  <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-xs text-neutral-500 font-medium">Nível de Atleta</p>
-                  <p className="text-base font-serif font-bold text-black truncate">{currentUser.tier}</p>
+                  <p className="text-xs text-neutral-500 font-medium">Conta de Cliente</p>
+                  <p className="text-base font-serif font-bold text-emerald-700">Ativa & Verificada</p>
                 </div>
               </div>
             </div>
@@ -695,413 +693,6 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
           </div>
         )}
 
-        {/* TAB 5: REWARDS & VYRO CLUB */}
-        {activeTab === 'rewards' && (
-          <div className="space-y-8">
-            {/* Notification alert for goal claimed or reward redeemed */}
-            {rewardNotice && (
-              <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 px-5 py-3.5 rounded-2xl flex items-center justify-between shadow-sm animate-fade-rise text-xs font-semibold">
-                <div className="flex items-center gap-2.5">
-                  <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>{rewardNotice}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setRewardNotice(null)}
-                  className="text-emerald-700 hover:text-emerald-900 text-xs font-bold px-2 py-1"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-
-            {/* Club Hero Card */}
-            <div className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-black text-white p-6 sm:p-8 rounded-3xl relative overflow-hidden border border-neutral-800 shadow-xl">
-              <div className="absolute right-0 top-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-              <div className="relative z-10">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div>
-                    <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                      VYRO Kinetic Club
-                    </span>
-                    <h2 className="font-serif text-3xl sm:text-4xl font-semibold mt-3 mb-1">
-                      O Teu Estatuto de Atleta
-                    </h2>
-                    <p className="text-xs text-neutral-400 max-w-lg">
-                      Acumula pontos em cada treino ou compra ({storeSettings.loyaltySettings?.pointsPerEuro || 10} pts por cada 1€), cumpre metas de atleta e desbloqueia cupões e meias de edições limitadas.
-                    </p>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm flex items-center gap-5 sm:self-start">
-                    <div>
-                      <span className="text-[10px] text-neutral-400 uppercase tracking-wider block font-bold">Saldo Atual</span>
-                      <span className="font-serif text-3xl sm:text-4xl font-bold text-cyan-400">
-                        {currentUser.points || 0}
-                      </span>
-                      <span className="text-xs text-neutral-400 ml-1">pts</span>
-                    </div>
-
-                    <div className="h-10 w-px bg-white/10" />
-
-                    <div>
-                      <span className="text-[10px] text-neutral-400 uppercase tracking-wider block font-bold">Nível Atual</span>
-                      <span className="font-semibold text-white text-sm block">{currentUser.tier}</span>
-                      <span className="text-[10px] text-emerald-400">Ativo</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Tier Progress Bar */}
-                <div className="mt-6 pt-6 border-t border-neutral-800/80">
-                  {(() => {
-                    const silverLimit = storeSettings.loyaltySettings?.silverTierThreshold || 400;
-                    const proLimit = storeSettings.loyaltySettings?.proTierThreshold || 1000;
-                    const currentPts = currentUser.points || 0;
-
-                    let nextTierName = 'Silver Athlete';
-                    let targetPts = silverLimit;
-                    let percent = Math.min(100, Math.round((currentPts / silverLimit) * 100));
-
-                    if (currentPts >= proLimit) {
-                      nextTierName = 'Pro Kinetic Máximo';
-                      targetPts = proLimit;
-                      percent = 100;
-                    } else if (currentPts >= silverLimit) {
-                      nextTierName = 'Pro Kinetic';
-                      targetPts = proLimit;
-                      percent = Math.min(100, Math.round(((currentPts - silverLimit) / (proLimit - silverLimit)) * 100));
-                    }
-
-                    return (
-                      <div>
-                        <div className="flex justify-between items-center text-xs text-neutral-400 mb-2 font-medium">
-                          <span>Progresso para <strong>{nextTierName}</strong></span>
-                          <span>
-                            {currentPts >= proLimit
-                              ? 'Estatuto de topo alcançado!'
-                              : `${currentPts} / ${targetPts} pts (faltam ${Math.max(0, targetPts - currentPts)} pts)`}
-                          </span>
-                        </div>
-                        <div className="w-full h-2.5 bg-neutral-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500 rounded-full shadow-[0_0_12px_rgba(6,182,212,0.6)]"
-                            style={{ width: `${percent}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-            </div>
-
-            {/* SECTION 1: METAS & DESAFIOS (Ganha Pontos) */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2 text-cyan-600 text-xs font-bold uppercase tracking-wider">
-                    <Target className="w-4 h-4" />
-                    <span>Desafios & Metas</span>
-                  </div>
-                  <h3 className="font-serif text-2xl text-black font-semibold mt-0.5">
-                    Metas para Acumular Pontos
-                  </h3>
-                </div>
-                <span className="text-xs text-neutral-500">
-                  {(currentUser.completedGoalIds || []).length} de {(storeSettings.loyaltySettings?.goals || []).filter((g) => g.enabled).length} concluídas
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {(storeSettings.loyaltySettings?.goals || [])
-                  .filter((g) => g.enabled)
-                  .map((goal) => {
-                    const isClaimed = (currentUser.completedGoalIds || []).includes(goal.id);
-                    let isReady = false;
-                    let progressText = '';
-
-                    switch (goal.type) {
-                      case 'first_order':
-                        isReady = userOrders.length >= 1;
-                        progressText = `${Math.min(userOrders.length, 1)} / 1 encomenda`;
-                        break;
-                      case 'order_count':
-                        const targetOrders = goal.targetValue || 3;
-                        isReady = userOrders.length >= targetOrders;
-                        progressText = `${userOrders.length} / ${targetOrders} encomendas`;
-                        break;
-                      case 'min_spend':
-                        const targetSpend = goal.targetValue || 50;
-                        const maxSpend = userOrders.reduce((m, o) => Math.max(m, o.totalAmount), 0);
-                        isReady = maxSpend >= targetSpend;
-                        progressText = `Compra máx: €${maxSpend.toFixed(2)} / €${targetSpend.toFixed(2)}`;
-                        break;
-                      case 'complete_profile':
-                        isReady = !!(currentUser.preferredSize && currentUser.address?.city && currentUser.phone);
-                        progressText = isReady ? 'Perfil 100% Completo' : 'Falta morada ou tamanho';
-                        break;
-                      case 'favorites_count':
-                        const targetFavs = goal.targetValue || 3;
-                        isReady = currentUser.favoriteProductIds.length >= targetFavs;
-                        progressText = `${currentUser.favoriteProductIds.length} / ${targetFavs} guardados`;
-                        break;
-                      case 'newsletter':
-                        isReady = true;
-                        progressText = 'Disponível para subscrição';
-                        break;
-                      default:
-                        isReady = true;
-                        progressText = 'Desafio de Atleta';
-                    }
-
-                    return (
-                      <div
-                        key={goal.id}
-                        className={`p-5 rounded-3xl border flex flex-col justify-between transition-all ${
-                          isClaimed
-                            ? 'bg-neutral-50/80 border-neutral-200 opacity-80'
-                            : isReady
-                            ? 'bg-gradient-to-b from-cyan-50/70 to-white border-cyan-300 shadow-md ring-1 ring-cyan-200'
-                            : 'bg-white border-neutral-200/90 shadow-2xs'
-                        }`}
-                      >
-                        <div>
-                          <div className="flex items-center justify-between gap-2 mb-3">
-                            <div className="w-10 h-10 rounded-2xl bg-cyan-100/60 border border-cyan-200 text-cyan-800 flex items-center justify-center">
-                              {goal.icon === 'zap' && <Zap className="w-5 h-5 text-amber-500" />}
-                              {goal.icon === 'heart' && <Heart className="w-5 h-5 text-rose-500" />}
-                              {goal.icon === 'shopping-bag' && <ShoppingBag className="w-5 h-5 text-cyan-600" />}
-                              {goal.icon === 'user-check' && <UserCheck className="w-5 h-5 text-blue-600" />}
-                              {goal.icon === 'award' && <Award className="w-5 h-5 text-amber-600" />}
-                              {goal.icon === 'mail' && <Mail className="w-5 h-5 text-cyan-600" />}
-                              {(!goal.icon || goal.icon === 'sparkles') && <Sparkles className="w-5 h-5 text-cyan-600" />}
-                            </div>
-
-                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200">
-                              +{goal.pointsReward} Pts
-                            </span>
-                          </div>
-
-                          <h4 className="font-serif text-base font-semibold text-black mb-1">
-                            {goal.title}
-                          </h4>
-                          <p className="text-xs text-neutral-500 leading-relaxed mb-3">
-                            {goal.description}
-                          </p>
-                        </div>
-
-                        <div className="pt-3 border-t border-neutral-100">
-                          <div className="flex items-center justify-between text-[11px] text-neutral-500 mb-2">
-                            <span>Estado:</span>
-                            <span className="font-semibold text-neutral-700">{progressText}</span>
-                          </div>
-
-                          {isClaimed ? (
-                            <div className="w-full py-2 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border border-emerald-200">
-                              <Check className="w-4 h-4" />
-                              <span>Concluído & Recompensado</span>
-                            </div>
-                          ) : isReady ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const res = claimGoal(goal.id, goal.pointsReward);
-                                setRewardNotice(res.message);
-                              }}
-                              className="w-full py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all active:scale-95"
-                            >
-                              <Sparkles className="w-3.5 h-3.5" />
-                              <span>Reivindicar +{goal.pointsReward} Pontos</span>
-                            </button>
-                          ) : (
-                            <div className="w-full py-2 bg-neutral-100 text-neutral-500 rounded-xl text-xs font-medium text-center">
-                              Meta em Progresso
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-
-            {/* SECTION 2: OFERTAS & CUPÕES RESGATÁVEIS */}
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center gap-2 text-amber-600 text-xs font-bold uppercase tracking-wider">
-                  <Gift className="w-4 h-4" />
-                  <span>Recompensas do Clube</span>
-                </div>
-                <h3 className="font-serif text-2xl text-black font-semibold mt-0.5">
-                  Ofertas & Cupões Resgatáveis com Pontos
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {(storeSettings.loyaltySettings?.rewards || [])
-                  .filter((r) => r.enabled)
-                  .map((reward) => {
-                    const currentPts = currentUser.points || 0;
-                    const hasEnough = currentPts >= reward.pointsCost;
-
-                    return (
-                      <div
-                        key={reward.id}
-                        className="bg-white p-5 rounded-3xl border border-neutral-200/90 flex flex-col justify-between shadow-2xs hover:shadow-md transition-all"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between gap-2 mb-2">
-                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-cyan-100 text-cyan-900 border border-cyan-200">
-                              {reward.pointsCost} Pontos
-                            </span>
-
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600">
-                              {reward.tierRequired === 'Pro Kinetic'
-                                ? 'Exclusivo Pro'
-                                : reward.tierRequired === 'Silver Athlete'
-                                ? 'Silver+'
-                                : 'Todos os Níveis'}
-                            </span>
-                          </div>
-
-                          <h4 className="font-serif text-lg font-semibold text-black mt-2">
-                            {reward.title}
-                          </h4>
-                          <p className="text-xs text-neutral-500 mt-1">{reward.description}</p>
-
-                          <div className="mt-4 p-3 bg-neutral-50 rounded-2xl border border-neutral-100 text-xs flex items-center justify-between">
-                            <div>
-                              <span className="text-[10px] text-neutral-400 block uppercase font-bold">Vantagem</span>
-                              <span className="font-semibold text-neutral-800">
-                                {reward.discountType === 'percent' && `${reward.discountValue}% de Desconto`}
-                                {reward.discountType === 'amount' && `-${reward.discountValue}€ Diretos`}
-                                {reward.discountType === 'free_shipping' && 'Portes de Envio Grátis'}
-                                {reward.discountType === 'free_product' && 'Par de Meias Grátis'}
-                              </span>
-                            </div>
-
-                            <span className="text-[10px] font-mono text-neutral-400">
-                              {reward.minOrderValue ? `Mín. ${reward.minOrderValue}€` : 'Sem mín.'}
-                            </span>
-                          </div>
-                        </div>
-
-                        <button
-                          disabled={!hasEnough}
-                          onClick={() => {
-                            const res = redeemReward(reward);
-                            if (res.success && res.voucher) {
-                              setRewardNotice(
-                                `Sucesso! Resgataste "${reward.title}". Código: ${res.voucher.code} disponível na tua carteira!`
-                              );
-                            } else if (res.error) {
-                              setRewardNotice(res.error);
-                            }
-                          }}
-                          className={`mt-4 w-full py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                            hasEnough
-                              ? 'bg-black text-white hover:bg-neutral-800 shadow-sm'
-                              : 'bg-neutral-100 text-neutral-400 cursor-not-allowed opacity-60'
-                          }`}
-                        >
-                          <Ticket className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>
-                            {hasEnough
-                              ? 'Resgatar Oferta'
-                              : `Faltam ${reward.pointsCost - currentPts} pts`}
-                          </span>
-                        </button>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-
-            {/* SECTION 3: OS MEUS CUPÕES E OFERTAS ATIVAS */}
-            {(currentUser.redeemedVouchers || []).length > 0 && (
-              <div className="space-y-4 pt-4 border-t border-neutral-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 text-purple-600 text-xs font-bold uppercase tracking-wider">
-                      <Ticket className="w-4 h-4" />
-                      <span>Carteira de Benefícios</span>
-                    </div>
-                    <h3 className="font-serif text-2xl text-black font-semibold mt-0.5">
-                      Os Teus Cupões & Ofertas Desbloqueadas
-                    </h3>
-                  </div>
-                  <span className="text-xs text-neutral-500">
-                    {(currentUser.redeemedVouchers || []).filter((v) => !v.isUsed).length} cupões disponíveis
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {(currentUser.redeemedVouchers || []).map((voucher) => (
-                    <div
-                      key={voucher.id}
-                      className={`p-5 rounded-2xl border flex items-center justify-between gap-4 transition-all ${
-                        voucher.isUsed
-                          ? 'bg-neutral-50 border-neutral-200 opacity-60'
-                          : 'bg-white border-purple-200 shadow-sm ring-1 ring-purple-100'
-                      }`}
-                    >
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600">
-                          {voucher.title}
-                        </span>
-                        <div className="flex items-center gap-2 mt-1">
-                          <code className="px-2.5 py-1 rounded-lg bg-neutral-100 font-mono font-bold text-sm text-black border border-neutral-200 tracking-wider">
-                            {voucher.code}
-                          </code>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(voucher.code);
-                              setCopiedVoucherCode(voucher.code);
-                              setTimeout(() => setCopiedVoucherCode(null), 2000);
-                            }}
-                            className="p-1.5 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-600 cursor-pointer transition-colors"
-                            title="Copiar Código"
-                          >
-                            {copiedVoucherCode === voucher.code ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-600" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                        </div>
-                        <span className="text-[10px] text-neutral-400 mt-1 block">
-                          Resgatado em {new Date(voucher.redeemedAt).toLocaleDateString('pt-PT')}
-                        </span>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        {voucher.isUsed ? (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-neutral-200 text-neutral-600">
-                            Já Utilizado
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(voucher.code);
-                              onBackToStore();
-                              setIsCartOpen(true);
-                            }}
-                            className="px-3 py-1.5 bg-black hover:bg-neutral-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
-                          >
-                            Usar no Carrinho
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* TAB 6: OS MEUS CUPÕES */}
         {activeTab === 'coupons' && (
           <div className="space-y-6">
@@ -1137,7 +728,7 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
                   <Ticket className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
                   <p className="font-serif font-bold text-lg text-black">Não tens cupões ativos de momento</p>
                   <p className="text-xs text-neutral-500 max-w-md mx-auto mt-1">
-                    Novos cupões atribuídos ao teu registo ou compras aparecerão aqui automaticamente. Podes também desbloquear cupões no separador <strong>Clube VYRO</strong> com os teus pontos!
+                    Novos cupões atribuídos ao teu registo, primeira compra ou campanhas promocionais aparecerão aqui automaticamente.
                   </p>
                   <button
                     onClick={onBackToStore}

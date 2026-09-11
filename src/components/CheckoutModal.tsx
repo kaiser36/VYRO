@@ -13,10 +13,9 @@ interface CheckoutModalProps {
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onViewOrders }) => {
   const { items, total, clearCart } = useCart();
   const { addOrder, storeSettings, orders } = useStore();
-  const { currentUser, isAuthenticated, addPoints, useVoucher, assignCouponToUser } = useUser();
+  const { currentUser, isAuthenticated, useVoucher, assignCouponToUser } = useUser();
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [paymentMethod, setPaymentMethod] = useState<'mbway' | 'multibanco' | 'card'>('mbway');
-  const [earnedPoints, setEarnedPoints] = useState(0);
   const [earnedFirstOrderCoupon, setEarnedFirstOrderCoupon] = useState<string | null>(null);
 
   // Coupon & Voucher state
@@ -153,12 +152,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
     );
     const isFirstOrder = userPreviousOrders.length === 0;
 
-    const ptsRate = storeSettings.loyaltySettings?.pointsPerEuro || 10;
-    const pts = Math.round(finalTotal * ptsRate);
-    setEarnedPoints(pts);
-
     if (isAuthenticated && currentUser) {
-      addPoints(pts);
       if (appliedCoupon) {
         useVoucher(appliedCoupon.code);
       }
@@ -219,21 +213,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
         <div className="p-6 sm:p-8 overflow-y-auto flex-1">
           {step === 'form' ? (
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Logged in badge or loyalty info */}
+              {/* Logged in badge */}
               {isAuthenticated ? (
                 <div className="p-3 bg-cyan-50 border border-cyan-200/80 rounded-2xl flex items-center justify-between text-xs text-cyan-950">
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4 text-cyan-700" />
                     <span>Sessão iniciada como <strong>{currentUser?.name}</strong></span>
                   </div>
-                  <span className="flex items-center gap-1 font-bold text-cyan-800">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" /> +{Math.round(total * 10)} Pts a ganhar
-                  </span>
                 </div>
               ) : (
                 <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-xs text-neutral-600 flex items-center justify-between">
                   <span>A finalizar compra como visitante.</span>
-                  <span className="text-[11px] text-cyan-700 font-medium">Esta encomenda dará +{Math.round(total * 10)} pts se tiveres conta!</span>
                 </div>
               )}
 
@@ -512,14 +502,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                   <span className="text-neutral-500">Estimativa de Entrega:</span>
                   <span className="text-emerald-600 font-bold">1 a 2 dias úteis</span>
                 </div>
-                {earnedPoints > 0 && (
-                  <div className="pt-2 border-t border-neutral-200 flex justify-between text-cyan-700 font-semibold">
-                    <span className="flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Pontos Ganhos:
-                    </span>
-                    <span>+{earnedPoints} pts</span>
-                  </div>
-                )}
               </div>
 
               {earnedFirstOrderCoupon && (

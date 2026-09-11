@@ -1308,29 +1308,6 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                         </div>
                       </div>
 
-                      {/* Quick Presets Carousel */}
-                      <div className="bg-white p-3.5 rounded-xl border border-neutral-200">
-                        <span className="text-[11px] text-neutral-500 font-semibold block mb-2">
-                          Ou adicione uma fotografia de demonstração VYRO com 1 clique:
-                        </span>
-                        <div className="flex gap-2.5 overflow-x-auto pb-1">
-                          {PRESET_SOCKS_IMAGES.map((preset, idx) => (
-                            <button
-                              type="button"
-                              key={idx}
-                              onClick={() => handleAddPresetImage(preset)}
-                              className="relative w-14 h-14 rounded-lg overflow-hidden border border-neutral-200 hover:border-cyan-500 transition-all cursor-pointer shrink-0 hover:scale-105 group"
-                              title="Adicionar esta fotografia à meia"
-                            >
-                              <img src={preset} alt={`preset ${idx + 1}`} className="w-full h-full object-cover" />
-                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <Plus className="w-4 h-4 text-white" />
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
                       {/* Gallery / Image List */}
                       <div className="pt-2">
                         <div className="flex items-center justify-between mb-2.5">

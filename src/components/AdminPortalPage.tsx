@@ -1833,23 +1833,26 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                         <span className="text-[11px] text-cyan-700 font-normal">Ao vivo</span>
                       </div>
 
-                      <div className="bg-neutral-950 text-white rounded-3xl p-6 border border-neutral-800 shadow-xl space-y-4">
+                      <div className="bg-neutral-950 text-white rounded-3xl p-6 sm:p-7 border border-neutral-800 shadow-xl space-y-4 relative overflow-hidden">
                         <div className="flex items-center justify-between">
                           <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 text-[10px] font-bold uppercase tracking-wider border border-cyan-400/30">
                             {bannerBadge || 'Categoria em Foco'}
                           </span>
-                          <span className="text-[10px] text-neutral-400">
+                          <span className="text-[10px] text-neutral-300 bg-white/10 px-2.5 py-0.5 rounded-full">
                             {categories.find((c) => c.id === bannerCategoryId)?.name || 'Categoria'}
                           </span>
                         </div>
 
-                        <div className="aspect-[16/10] w-full rounded-2xl overflow-hidden bg-neutral-900 border border-neutral-800 relative">
+                        <div className="aspect-[16/9] w-full rounded-2xl overflow-hidden bg-neutral-900 border border-neutral-800 relative shadow-inner">
                           <img
                             src={bannerImageUrl}
                             alt="Pré-visualização"
                             className="w-full h-full object-cover"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-transparent to-transparent" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/90 via-transparent to-transparent" />
+                          <div className="absolute bottom-2.5 right-2.5 text-[10px] bg-black/80 backdrop-blur-xs px-2 py-0.5 rounded-md text-cyan-300 border border-white/10">
+                            Banner Hero (Largura Total)
+                          </div>
                         </div>
 
                         <h4 className="font-serif text-2xl text-white font-normal leading-tight">
@@ -1862,7 +1865,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
 
                         <button
                           type="button"
-                          className="w-full py-3 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400 text-black font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-cyan-500/20"
+                          className="w-full py-3 rounded-full bg-cyan-400 text-black font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-cyan-400/20"
                         >
                           <span>{bannerButtonText || 'Explorar Coleção'}</span>
                           <ArrowRight className="w-3.5 h-3.5" />

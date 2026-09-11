@@ -1969,33 +1969,15 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                             )}
                           </td>
                           <td className="p-4">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`px-2.5 py-1 rounded-full text-[11px] font-bold shadow-2xs border ${
-                                  p.inStock && (p.stock === undefined || p.stock > 0)
-                                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                                    : 'bg-rose-100 text-rose-900 border-rose-300'
-                                }`}
-                              >
-                                {p.stock !== undefined ? `${p.stock} un.` : (p.inStock ? 'Em Stock' : 'Esgotado')}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newInStock = !p.inStock;
-                                  const currentStock = p.stock !== undefined ? p.stock : 30;
-                                  updateProduct(p.id, {
-                                    inStock: newInStock,
-                                    stock: newInStock ? (currentStock > 0 ? currentStock : 25) : 0,
-                                  });
-                                  showNotification(`Stock de "${p.name}" alterado.`);
-                                }}
-                                className="text-[10px] text-neutral-500 hover:text-black underline cursor-pointer"
-                                title="Alternar estado de stock"
-                              >
-                                {p.inStock && (p.stock === undefined || p.stock > 0) ? 'Esgotar' : 'Repor'}
-                              </button>
-                            </div>
+                            <span
+                              className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold shadow-2xs border ${
+                                p.inStock && (p.stock === undefined || p.stock > 0)
+                                  ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                  : 'bg-rose-100 text-rose-900 border-rose-300'
+                              }`}
+                            >
+                              {p.stock !== undefined ? `${p.stock} un.` : (p.inStock ? 'Em Stock' : 'Esgotado')}
+                            </span>
                           </td>
                           <td className="p-4 text-center">
                             <button

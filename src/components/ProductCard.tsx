@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShoppingBag, Eye, Star, Check, Heart } from 'lucide-react';
 import { Product, ProductColor } from '../types/store';
 import { useCart } from '../context/CartContext';
@@ -8,13 +8,26 @@ interface ProductCardProps {
   product: Product;
   onQuickView: (product: Product) => void;
   onRequireAuth?: () => void;
+  initialSize?: string;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView, onRequireAuth }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView, onRequireAuth, initialSize }) => {
   const { addItem } = useCart();
   const { isFavorite, toggleFavorite, isAuthenticated } = useUser();
   const [selectedColor, setSelectedColor] = useState<ProductColor>(product.colors[0] || { name: 'Padrão', hex: '#00f2fe' });
-  const [selectedSize, setSelectedSize] = useState<string>(product.sizes[0] || '39-42');
+  const [selectedSize, setSelectedSize] = useState<string>(() => {
+    if (initialSize && product.sizes.includes(initialSize)) {
+      return initialSize;
+    }
+    return product.sizes[0] || '39-42';
+  });
+
+  useEffect(() => {
+    if (initialSize && product.sizes.includes(initialSize)) {
+      setSelectedSize(initialSize);
+    }
+  }, [initialSize, product.sizes]);
+
   const [addedAnimation, setAddedAnimation] = useState(false);
 
   const isFav = isFavorite(product.id);

@@ -19,23 +19,38 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
   selectedCategory: propCategory,
   onSelectCategory: propOnSelectCategory,
 }) => {
-  const { products, categories, isAdmin } = useStore();
+  const { products, categories, storeSettings, isAdmin } = useStore();
   const [internalCategory, setInternalCategory] = useState<string>('all');
   const selectedCategory = propCategory !== undefined ? propCategory : internalCategory;
   const setSelectedCategory = propOnSelectCategory || setInternalCategory;
+  const [selectedSize, setSelectedSize] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating'>('featured');
+
+  // List of all sizes sorted by size range
+  const allAvailableSizes = useMemo(() => {
+    const sizeSet = new Set<string>(storeSettings?.availableSizes || []);
+    products.forEach((p) => {
+      p.sizes?.forEach((s) => sizeSet.add(s));
+    });
+    return Array.from(sizeSet).sort((a, b) => {
+      const numA = parseInt(a.split('-')[0]) || 0;
+      const numB = parseInt(b.split('-')[0]) || 0;
+      return numA - numB;
+    });
+  }, [storeSettings?.availableSizes, products]);
 
   const filteredProducts = useMemo(() => {
     return products
       .filter((p) => {
         const matchesCategory = selectedCategory === 'all' || p.categoryId === selectedCategory;
+        const matchesSize = selectedSize === 'all' || (p.sizes && p.sizes.includes(selectedSize));
         const matchesSearch =
           p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           p.tagline.toLowerCase().includes(searchQuery.toLowerCase()) ||
           p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
           p.categoryName.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesCategory && matchesSearch;
+        return matchesCategory && matchesSize && matchesSearch;
       })
       .sort((a, b) => {
         if (sortBy === 'price-asc') return a.price - b.price;
@@ -43,7 +58,13 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
         if (sortBy === 'rating') return b.rating - a.rating;
         return 0; // default featured
       });
-  }, [products, selectedCategory, searchQuery, sortBy]);
+  }, [products, selectedCategory, selectedSize, searchQuery, sortBy]);
+
+  const handleClearAllFilters = () => {
+    setSelectedCategory('all');
+    setSelectedSize('all');
+    setSearchQuery('');
+  };
 
   return (
     <section id="catalog" className="relative py-20 px-6 max-w-7xl mx-auto">
@@ -64,7 +85,7 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
         {isAdmin && (
           <button
             onClick={onOpenAdmin}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-cyan-600 text-white hover:bg-cyan-700 transition-all font-medium text-xs shadow-lg hover:scale-105 shrink-0"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-cyan-600 text-white hover:bg-cyan-700 transition-all font-medium text-xs shadow-lg hover:scale-105 shrink-0 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Adicionar Novo Produto</span>
@@ -74,31 +95,80 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
 
       {/* Filter and Search Section */}
       <div className="space-y-4 mb-10">
-        {/* Category Pills (Dedicated full-width row with wrap) */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        {/* Category Pills */}
+        <div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => setSelectedCategory('all')}
+              className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                selectedCategory === 'all'
+                  ? 'bg-black text-white shadow-md'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-black'
+              }`}
+            >
+              Todas ({products.length})
+            </button>
+            {categories.map((cat) => {
+              const count = products.filter((p) => p.categoryId === cat.id).length;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-4 py-2.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer ${
+                    selectedCategory === cat.id
+                      ? 'bg-black text-white shadow-md'
+                      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-black'
+                  }`}
+                >
+                  {cat.name} ({count})
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Size Filter Pills Bar */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-neutral-100">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 mr-1 flex items-center gap-1.5">
+            <span>Tamanho:</span>
+          </span>
           <button
-            onClick={() => setSelectedCategory('all')}
-            className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
-              selectedCategory === 'all'
-                ? 'bg-black text-white shadow-md'
-                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-black'
+            onClick={() => setSelectedSize('all')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+              selectedSize === 'all'
+                ? 'bg-neutral-900 text-white shadow-xs'
+                : 'bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-300 hover:text-black'
             }`}
           >
-            Todas ({products.length})
+            Todos os Tamanhos
           </button>
-          {categories.map((cat) => {
-            const count = products.filter((p) => p.categoryId === cat.id).length;
+          {allAvailableSizes.map((size) => {
+            const count = products.filter(
+              (p) =>
+                (selectedCategory === 'all' || p.categoryId === selectedCategory) &&
+                p.sizes?.includes(size)
+            ).length;
+            const isSelected = selectedSize === size;
             return (
               <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                className={`px-4 py-2.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-                  selectedCategory === cat.id
-                    ? 'bg-black text-white shadow-md'
-                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-black'
+                key={size}
+                onClick={() => setSelectedSize(isSelected ? 'all' : size)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 border ${
+                  isSelected
+                    ? 'bg-cyan-600 text-white border-cyan-600 shadow-sm'
+                    : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-400 hover:text-black'
                 }`}
               >
-                {cat.name} ({count})
+                <span>{size}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold leading-none ${
+                    isSelected
+                      ? 'bg-white/25 text-white'
+                      : 'bg-neutral-100 text-neutral-500'
+                  }`}
+                >
+                  {count}
+                </span>
               </button>
             );
           })}
@@ -106,22 +176,47 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
 
         {/* Search, Sort & Results Bar */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-neutral-100">
-          <div className="text-xs text-neutral-500 font-medium flex items-center gap-2">
+          <div className="text-xs text-neutral-500 font-medium flex items-center gap-2 flex-wrap">
             <span>
               A exibir <strong className="text-black font-bold">{filteredProducts.length}</strong> de{' '}
               <strong className="text-black font-bold">{products.length}</strong> modelos
             </span>
-            {(selectedCategory !== 'all' || searchQuery.trim() !== '') && (
-              <button
-                onClick={() => {
-                  setSelectedCategory('all');
-                  setSearchQuery('');
-                }}
-                className="text-[11px] text-cyan-600 hover:underline font-bold ml-1 cursor-pointer flex items-center gap-1"
-              >
-                <X className="w-3 h-3" />
-                <span>Limpar filtros</span>
-              </button>
+
+            {/* Active filter chips */}
+            {(selectedCategory !== 'all' || selectedSize !== 'all' || searchQuery.trim() !== '') && (
+              <div className="flex items-center gap-1.5 flex-wrap ml-1">
+                {selectedCategory !== 'all' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-800 text-[11px] font-medium border border-neutral-200">
+                    <span>{categories.find((c) => c.id === selectedCategory)?.name || 'Categoria'}</span>
+                    <button
+                      onClick={() => setSelectedCategory('all')}
+                      className="hover:text-black cursor-pointer ml-0.5"
+                      title="Remover filtro de categoria"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {selectedSize !== 'all' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-cyan-50 text-cyan-800 text-[11px] font-medium border border-cyan-200">
+                    <span>Tam: {selectedSize}</span>
+                    <button
+                      onClick={() => setSelectedSize('all')}
+                      className="hover:text-cyan-950 cursor-pointer ml-0.5"
+                      title="Remover filtro de tamanho"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                <button
+                  onClick={handleClearAllFilters}
+                  className="text-[11px] text-cyan-600 hover:underline font-bold ml-1 cursor-pointer flex items-center gap-1"
+                >
+                  <X className="w-3 h-3" />
+                  <span>Limpar tudo</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -172,22 +267,20 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
               product={product}
               onQuickView={onQuickView}
               onRequireAuth={onRequireAuth}
+              initialSize={selectedSize !== 'all' ? selectedSize : undefined}
             />
           ))}
         </div>
       ) : (
         <div className="py-20 text-center flex flex-col items-center justify-center bg-neutral-50 rounded-3xl border border-dashed border-neutral-300 p-8">
           <Filter className="w-10 h-10 text-neutral-400 mb-3" />
-          <h3 className="font-serif text-2xl text-black">Nenhum produto encontrado</h3>
+          <h3 className="font-serif text-2xl text-black">Nenhum modelo encontrado</h3>
           <p className="text-neutral-500 text-xs mt-1 max-w-sm">
-            Não encontramos meias correspondentes à sua pesquisa. Tente selecionar outra categoria ou limpar a busca.
+            Não encontramos meias com os filtros selecionados (categoria, tamanho ou pesquisa). Tente ajustar ou limpar os filtros.
           </p>
           <button
-            onClick={() => {
-              setSelectedCategory('all');
-              setSearchQuery('');
-            }}
-            className="mt-5 px-6 py-2 rounded-full text-xs bg-black text-white font-medium hover:bg-neutral-800 transition-colors"
+            onClick={handleClearAllFilters}
+            className="mt-5 px-6 py-2 rounded-full text-xs bg-black text-white font-medium hover:bg-neutral-800 transition-colors cursor-pointer"
           >
             Ver Todas as Meias
           </button>

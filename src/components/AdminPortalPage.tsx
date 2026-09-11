@@ -141,7 +141,8 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
   const [prodBadge, setProdBadge] = useState('NOVO');
   const [prodSizes, setProdSizes] = useState<string[]>(['35-38', '39-42', '43-46']);
   const [prodColors, setProdColors] = useState<ProductColor[]>([]);
-  const [prodImageUrl, setProdImageUrl] = useState(PRESET_SOCKS_IMAGES[0]);
+  const [prodImages, setProdImages] = useState<string[]>([PRESET_SOCKS_IMAGES[0]]);
+  const [newImageUrlInput, setNewImageUrlInput] = useState('');
   const [prodIsFeatured, setProdIsFeatured] = useState(false);
 
   // Initialize selected product colors from available colors
@@ -150,6 +151,58 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
       setProdColors(storeSettings.availableColors.slice(0, 3));
     }
   }, [storeSettings.availableColors]);
+
+  const handleAddImageUrl = () => {
+    const trimmed = newImageUrlInput.trim();
+    if (!trimmed) return;
+    setProdImages((prev) => [...prev, trimmed]);
+    setNewImageUrlInput('');
+  };
+
+  const handleFileUploadMultiple = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          const resultStr = reader.result;
+          setProdImages((prev) => [...prev, resultStr]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setProdImages((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleSetCoverImage = (index: number) => {
+    setProdImages((prev) => {
+      const selected = prev[index];
+      const rest = prev.filter((_, idx) => idx !== index);
+      return [selected, ...rest];
+    });
+  };
+
+  const handleMoveImage = (index: number, direction: 'left' | 'right') => {
+    setProdImages((prev) => {
+      const newImages = [...prev];
+      const targetIndex = direction === 'left' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= newImages.length) return prev;
+      const temp = newImages[index];
+      newImages[index] = newImages[targetIndex];
+      newImages[targetIndex] = temp;
+      return newImages;
+    });
+  };
+
+  const handleAddPresetImage = (url: string) => {
+    setProdImages((prev) => [...prev, url]);
+  };
 
   const handleStartCreateProduct = () => {
     setEditingProduct(null);
@@ -166,7 +219,8 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     setProdBadge('NOVO');
     setProdSizes(storeSettings.availableSizes.slice(0, 3));
     setProdColors(storeSettings.availableColors.slice(0, 3));
-    setProdImageUrl(PRESET_SOCKS_IMAGES[0]);
+    setProdImages([PRESET_SOCKS_IMAGES[0]]);
+    setNewImageUrlInput('');
     setProdIsFeatured(false);
     setCatalogMode('create');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -188,7 +242,8 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     setProdBadge(p.badge || '');
     setProdSizes(p.sizes || ['39-42']);
     setProdColors(p.colors || []);
-    setProdImageUrl(p.images[0] || PRESET_SOCKS_IMAGES[0]);
+    setProdImages(p.images && p.images.length > 0 ? [...p.images] : [PRESET_SOCKS_IMAGES[0]]);
+    setNewImageUrlInput('');
     setProdIsFeatured(!!p.isFeatured);
     setCatalogMode('edit');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -206,6 +261,8 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
     const selectedCatObj = categories.find((c) => c.id === prodCategory) || categories[0];
     const stockQty = Math.max(0, parseInt(prodStock || '0', 10));
     const isInStock = stockQty > 0 && prodInStock;
+    const validImages = prodImages.filter((img) => img.trim().length > 0);
+    const finalImages = validImages.length > 0 ? validImages : [PRESET_SOCKS_IMAGES[0]];
 
     if (catalogMode === 'edit' && editingProduct) {
       updateProduct(editingProduct.id, {
@@ -222,7 +279,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
         materials: prodMaterials.trim() || undefined,
         sizes: prodSizes.length > 0 ? prodSizes : ['39-42'],
         colors: prodColors.length > 0 ? prodColors : storeSettings.availableColors.slice(0, 3),
-        images: [prodImageUrl, ...(editingProduct.images.slice(1))],
+        images: finalImages,
         badge: prodBadge.trim() || undefined,
         isFeatured: prodIsFeatured,
       });
@@ -242,7 +299,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
         materials: prodMaterials,
         sizes: prodSizes.length > 0 ? prodSizes : ['39-42'],
         colors: prodColors.length > 0 ? prodColors : storeSettings.availableColors.slice(0, 3),
-        images: [prodImageUrl],
+        images: finalImages,
         badge: prodBadge || undefined,
         isFeatured: prodIsFeatured,
       });
@@ -1165,39 +1222,218 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onBackToStore 
                       </div>
                     </div>
 
-                    {/* Image URL & Preset Selection */}
-                    <div className="pt-2">
-                      <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider block mb-1.5">
-                        URL da Imagem da Meia
-                      </label>
-                      <input
-                        type="url"
-                        required
-                        placeholder="https://images.unsplash.com/..."
-                        value={prodImageUrl}
-                        onChange={(e) => setProdImageUrl(e.target.value)}
-                        className="w-full px-4 py-3 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
-                      />
-                      <div className="mt-3">
-                        <span className="text-[11px] text-neutral-500 font-semibold">
-                          Ou escolha uma fotografia modelo com 1 clique:
+                    {/* Multi-Image Manager (Upload from PC + Add by URL + Presets) */}
+                    <div className="pt-2 bg-neutral-50/80 p-5 rounded-2xl border border-neutral-200 space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-neutral-200">
+                        <div>
+                          <label className="text-xs font-bold uppercase text-neutral-800 tracking-wider flex items-center gap-2">
+                            <ImageIcon className="w-4 h-4 text-cyan-600" />
+                            <span>Fotografias da Meia ({prodImages.length})</span>
+                          </label>
+                          <p className="text-[11px] text-neutral-500 mt-0.5">
+                            Carregue fotos do computador ou adicione por link URL. A primeira fotografia é a capa principal da loja.
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-bold text-neutral-600 uppercase tracking-wider bg-white px-3 py-1 rounded-full border border-neutral-200 self-start sm:self-auto shadow-2xs">
+                          Múltiplas Fotos Permitidas
                         </span>
-                        <div className="flex gap-3 mt-2 overflow-x-auto pb-2">
-                          {PRESET_SOCKS_IMAGES.map((img, idx) => (
+                      </div>
+
+                      {/* Top input actions: 2 Options (Upload from PC & Add by URL) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Option 1: Upload from Computer */}
+                        <div className="bg-white p-4 rounded-xl border border-dashed border-neutral-300 hover:border-cyan-500 transition-colors flex flex-col justify-between">
+                          <div>
+                            <span className="text-xs font-bold text-neutral-800 flex items-center gap-1.5 mb-1.5">
+                              <Upload className="w-3.5 h-3.5 text-cyan-600" />
+                              <span>Opção 1: Carregar do Computador</span>
+                            </span>
+                            <p className="text-[11px] text-neutral-500 mb-3">
+                              Selecione uma ou várias fotografias guardadas no seu PC:
+                            </p>
+                          </div>
+                          <label className="flex flex-col items-center justify-center p-4 rounded-xl bg-neutral-50 hover:bg-cyan-50/60 border border-neutral-200 hover:border-cyan-300 transition-all cursor-pointer group">
+                            <Upload className="w-6 h-6 text-neutral-400 group-hover:text-cyan-600 group-hover:-translate-y-0.5 transition-all mb-1" />
+                            <span className="text-xs font-bold text-neutral-800 group-hover:text-cyan-900">
+                              Escolher Ficheiros do PC
+                            </span>
+                            <span className="text-[10px] text-neutral-400 mt-0.5">
+                              PNG, JPG, WEBP (seleção múltipla)
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={handleFileUploadMultiple}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+
+                        {/* Option 2: Add by URL */}
+                        <div className="bg-white p-4 rounded-xl border border-neutral-200 flex flex-col justify-between">
+                          <div>
+                            <span className="text-xs font-bold text-neutral-800 flex items-center gap-1.5 mb-1.5">
+                              <ExternalLink className="w-3.5 h-3.5 text-cyan-600" />
+                              <span>Opção 2: Adicionar por Link / URL</span>
+                            </span>
+                            <p className="text-[11px] text-neutral-500 mb-3">
+                              Cole o link direto da fotografia na web:
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="url"
+                              placeholder="https://exemplo.com/foto-meia.jpg"
+                              value={newImageUrlInput}
+                              onChange={(e) => setNewImageUrlInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddImageUrl();
+                                }
+                              }}
+                              className="w-full px-3.5 py-2 text-xs border rounded-xl border-neutral-300 focus:outline-none focus:border-black"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleAddImageUrl}
+                              className="w-full py-2 bg-neutral-900 hover:bg-black text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                            >
+                              <Plus className="w-3.5 h-3.5 text-cyan-400" />
+                              <span>Adicionar Fotografia por URL</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quick Presets Carousel */}
+                      <div className="bg-white p-3.5 rounded-xl border border-neutral-200">
+                        <span className="text-[11px] text-neutral-500 font-semibold block mb-2">
+                          Ou adicione uma fotografia de demonstração VYRO com 1 clique:
+                        </span>
+                        <div className="flex gap-2.5 overflow-x-auto pb-1">
+                          {PRESET_SOCKS_IMAGES.map((preset, idx) => (
                             <button
                               type="button"
                               key={idx}
-                              onClick={() => setProdImageUrl(img)}
-                              className={`relative w-16 h-16 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
-                                prodImageUrl === img
-                                  ? 'border-cyan-500 ring-4 ring-cyan-100 shadow-md scale-105'
-                                  : 'border-neutral-200 opacity-60 hover:opacity-100'
-                              }`}
+                              onClick={() => handleAddPresetImage(preset)}
+                              className="relative w-14 h-14 rounded-lg overflow-hidden border border-neutral-200 hover:border-cyan-500 transition-all cursor-pointer shrink-0 hover:scale-105 group"
+                              title="Adicionar esta fotografia à meia"
                             >
-                              <img src={img} alt="preset" className="w-full h-full object-cover" />
+                              <img src={preset} alt={`preset ${idx + 1}`} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <Plus className="w-4 h-4 text-white" />
+                              </div>
                             </button>
                           ))}
                         </div>
+                      </div>
+
+                      {/* Gallery / Image List */}
+                      <div className="pt-2">
+                        <div className="flex items-center justify-between mb-2.5">
+                          <span className="text-xs font-bold uppercase text-neutral-800 tracking-wider">
+                            Galeria de Fotos da Meia ({prodImages.length})
+                          </span>
+                          {prodImages.length > 0 && (
+                            <span className="text-[11px] text-cyan-700 font-semibold">
+                              ★ Foto #1 é a foto de capa principal
+                            </span>
+                          )}
+                        </div>
+
+                        {prodImages.length === 0 ? (
+                          <div className="p-8 text-center bg-white rounded-xl border border-dashed border-neutral-300">
+                            <ImageIcon className="w-8 h-8 text-neutral-300 mx-auto mb-2" />
+                            <p className="text-xs font-semibold text-neutral-700">Nenhuma fotografia associada a esta meia</p>
+                            <p className="text-[11px] text-neutral-400 mt-0.5">Carregue ficheiros do seu computador ou adicione via URL acima.</p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                            {prodImages.map((img, idx) => {
+                              const isCover = idx === 0;
+                              return (
+                                <div
+                                  key={idx}
+                                  className={`group relative bg-white rounded-xl border overflow-hidden transition-all shadow-2xs ${
+                                    isCover
+                                      ? 'border-cyan-500 ring-2 ring-cyan-400/40 shadow-sm'
+                                      : 'border-neutral-200 hover:border-neutral-300'
+                                  }`}
+                                >
+                                  {/* Thumbnail */}
+                                  <div className="relative aspect-square w-full bg-neutral-100 overflow-hidden">
+                                    <img src={img} alt={`foto ${idx + 1}`} className="w-full h-full object-cover" />
+
+                                    {/* Cover Badge */}
+                                    {isCover && (
+                                      <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-xs text-cyan-300 text-[9px] font-bold uppercase tracking-wider shadow-sm flex items-center gap-1">
+                                        <Star className="w-2.5 h-2.5 fill-cyan-400 text-cyan-400" />
+                                        Capa Principal
+                                      </span>
+                                    )}
+
+                                    {/* Action Buttons overlay */}
+                                    <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveImage(idx)}
+                                        className="w-6 h-6 rounded-full bg-black/70 hover:bg-red-600 text-white flex items-center justify-center transition-colors cursor-pointer shadow-xs"
+                                        title="Eliminar esta foto"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Card Footer Controls */}
+                                  <div className="p-2 bg-neutral-50 border-t border-neutral-100 flex items-center justify-between text-[10px]">
+                                    <span className="font-mono text-neutral-400 font-bold">#{idx + 1}</span>
+
+                                    <div className="flex items-center gap-1">
+                                      {/* Reorder Left */}
+                                      {idx > 0 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleMoveImage(idx, 'left')}
+                                          className="p-1 rounded hover:bg-neutral-200 text-neutral-600 hover:text-black cursor-pointer"
+                                          title="Mover foto para trás"
+                                        >
+                                          <ArrowLeft className="w-3 h-3" />
+                                        </button>
+                                      )}
+
+                                      {/* Set as Cover */}
+                                      {!isCover && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSetCoverImage(idx)}
+                                          className="px-1.5 py-0.5 rounded bg-white hover:bg-cyan-50 text-cyan-700 border border-cyan-200 font-semibold text-[9px] cursor-pointer"
+                                          title="Definir como foto de capa"
+                                        >
+                                          Tornar Capa
+                                        </button>
+                                      )}
+
+                                      {/* Reorder Right */}
+                                      {idx < prodImages.length - 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleMoveImage(idx, 'right')}
+                                          className="p-1 rounded hover:bg-neutral-200 text-neutral-600 hover:text-black cursor-pointer"
+                                          title="Mover foto para a frente"
+                                        >
+                                          <ArrowRight className="w-3 h-3" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
 

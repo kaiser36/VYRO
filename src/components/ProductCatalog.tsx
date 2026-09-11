@@ -127,55 +127,8 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
           </div>
         </div>
 
-        {/* Size Filter Pills Bar */}
-        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-neutral-100">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 mr-1 flex items-center gap-1.5">
-            <span>Tamanho:</span>
-          </span>
-          <button
-            onClick={() => setSelectedSize('all')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-              selectedSize === 'all'
-                ? 'bg-neutral-900 text-white shadow-xs'
-                : 'bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-300 hover:text-black'
-            }`}
-          >
-            Todos os Tamanhos
-          </button>
-          {allAvailableSizes.map((size) => {
-            const count = products.filter(
-              (p) =>
-                (selectedCategory === 'all' || p.categoryId === selectedCategory) &&
-                p.sizes?.includes(size)
-            ).length;
-            const isSelected = selectedSize === size;
-            return (
-              <button
-                key={size}
-                onClick={() => setSelectedSize(isSelected ? 'all' : size)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 border ${
-                  isSelected
-                    ? 'bg-cyan-600 text-white border-cyan-600 shadow-sm'
-                    : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-400 hover:text-black'
-                }`}
-              >
-                <span>{size}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold leading-none ${
-                    isSelected
-                      ? 'bg-white/25 text-white'
-                      : 'bg-neutral-100 text-neutral-500'
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Search, Sort & Results Bar */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-neutral-100">
+        {/* Search, Size Dropdown, Sort & Results Bar */}
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-3 border-t border-neutral-100">
           <div className="text-xs text-neutral-500 font-medium flex items-center gap-2 flex-wrap">
             <span>
               A exibir <strong className="text-black font-bold">{filteredProducts.length}</strong> de{' '}
@@ -220,13 +173,14 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
             )}
           </div>
 
-          {/* Search & Sort Controls */}
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1 sm:w-72">
+          {/* Controls: Search, Size Selector Box, Sort Dropdown */}
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+            {/* Search Input */}
+            <div className="relative flex-1 sm:w-60">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
               <input
                 type="text"
-                placeholder="Pesquisar meia ou tecnologia..."
+                placeholder="Pesquisar meias..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-8 py-2 rounded-full text-xs border border-neutral-200 focus:outline-none focus:border-black focus:ring-1 focus:ring-black bg-white shadow-2xs"
@@ -241,18 +195,52 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
               )}
             </div>
 
+            {/* Caixa de Tamanho (Dropdown que abres e escolhes o tamanho) */}
+            <div className="relative flex items-center shrink-0">
+              <select
+                value={selectedSize}
+                onChange={(e) => setSelectedSize(e.target.value)}
+                className={`pl-4 pr-8 py-2 rounded-full text-xs border font-medium focus:outline-none focus:border-black cursor-pointer shadow-2xs appearance-none transition-all ${
+                  selectedSize !== 'all'
+                    ? 'bg-cyan-50 border-cyan-400 text-cyan-900 font-bold'
+                    : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-300'
+                }`}
+              >
+                <option value="all">Tamanho: Todos</option>
+                {allAvailableSizes.map((size) => {
+                  const count = products.filter(
+                    (p) =>
+                      (selectedCategory === 'all' || p.categoryId === selectedCategory) &&
+                      p.sizes?.includes(size)
+                  ).length;
+                  return (
+                    <option key={size} value={size}>
+                      Tamanho {size} ({count})
+                    </option>
+                  );
+                })}
+              </select>
+              <div className="absolute right-3 pointer-events-none text-neutral-400 text-[10px]">
+                ▼
+              </div>
+            </div>
+
+            {/* Sort Dropdown */}
             <div className="relative flex items-center shrink-0">
               <SlidersHorizontal className="absolute left-3.5 w-3.5 h-3.5 text-neutral-400 pointer-events-none" />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="pl-9 pr-6 py-2 rounded-full text-xs border border-neutral-200 bg-white font-medium text-neutral-700 focus:outline-none focus:border-black cursor-pointer appearance-none shadow-2xs"
+                className="pl-9 pr-8 py-2 rounded-full text-xs border border-neutral-200 bg-white font-medium text-neutral-700 focus:outline-none focus:border-black cursor-pointer appearance-none shadow-2xs"
               >
                 <option value="featured">Destaques</option>
                 <option value="price-asc">Preço: Baixo p/ Alto</option>
                 <option value="price-desc">Preço: Alto p/ Baixo</option>
                 <option value="rating">Melhor Avaliadas</option>
               </select>
+              <div className="absolute right-3 pointer-events-none text-neutral-400 text-[10px]">
+                ▼
+              </div>
             </div>
           </div>
         </div>

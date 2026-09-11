@@ -114,6 +114,22 @@ export interface Order {
   createdAt: string;
 }
 
+export interface ProductReview {
+  id: string;
+  productId: string;
+  userId?: string;
+  userName: string;
+  userEmail?: string;
+  rating: number;
+  title?: string;
+  comment: string;
+  size?: string;
+  color?: string;
+  verifiedAthlete?: boolean;
+  createdAt: string;
+  likes?: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -135,6 +151,7 @@ export interface Product {
   stock?: number;
   isFeatured?: boolean;
   createdAt: string;
+  reviews?: ProductReview[];
 }
 
 export interface Category {

@@ -5,6 +5,7 @@ import {
   Order,
   Product,
   ProductColor,
+  ProductReview,
   StoreSettings,
   LoyaltyReward,
   LoyaltyGoal,
@@ -275,6 +276,23 @@ interface StoreContextType {
   addLoyaltyGoal: (goalData: Omit<LoyaltyGoal, 'id'>) => void;
   updateLoyaltyGoal: (id: string, goalData: Partial<LoyaltyGoal>) => void;
   deleteLoyaltyGoal: (id: string) => void;
+  addProductReview: (
+    productId: string,
+    reviewData: {
+      rating: number;
+      comment: string;
+      title?: string;
+      size?: string;
+      color?: string;
+    },
+    author: {
+      name: string;
+      email?: string;
+      userId?: string;
+      tier?: string;
+    }
+  ) => void;
+  toggleReviewLike: (productId: string, reviewId: string) => void;
   resetStoreData: () => void;
 }
 
@@ -294,14 +312,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const saved = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
       if (saved) {
         const parsed: Product[] = JSON.parse(saved);
-        const hasFeatured = parsed.some((p) => p.isFeatured === true);
-        if (!hasFeatured && parsed.length > 0) {
-          return parsed.map((p, idx) => ({
+        return parsed.map((p, idx) => {
+          const initP = INITIAL_PRODUCTS.find((ip) => ip.id === p.id);
+          const reviews = p.reviews && p.reviews.length > 0 ? p.reviews : initP?.reviews || [];
+          return {
             ...p,
-            isFeatured: idx < 3,
-          }));
-        }
-        return parsed;
+            reviews,
+            isFeatured: p.isFeatured !== undefined ? p.isFeatured : idx < 3,
+          };
+        });
       }
       return INITIAL_PRODUCTS;
     } catch {
@@ -730,6 +749,69 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
   };
 
+  const addProductReview = (
+    productId: string,
+    reviewData: {
+      rating: number;
+      comment: string;
+      title?: string;
+      size?: string;
+      color?: string;
+    },
+    author: {
+      name: string;
+      email?: string;
+      userId?: string;
+      tier?: string;
+    }
+  ) => {
+    const newReview: ProductReview = {
+      id: 'rev-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+      productId,
+      userId: author.userId,
+      userName: author.name,
+      userEmail: author.email,
+      rating: reviewData.rating,
+      title: reviewData.title,
+      comment: reviewData.comment,
+      size: reviewData.size,
+      color: reviewData.color,
+      verifiedAthlete: true,
+      createdAt: new Date().toISOString(),
+      likes: 0,
+    };
+
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id !== productId) return p;
+        const currentReviews = p.reviews || [];
+        const updatedReviews = [newReview, ...currentReviews];
+        const totalRating = updatedReviews.reduce((acc, r) => acc + r.rating, 0);
+        const avgRating = parseFloat((totalRating / updatedReviews.length).toFixed(1));
+        return {
+          ...p,
+          rating: avgRating,
+          reviewCount: (p.reviewCount || 0) + 1,
+          reviews: updatedReviews,
+        };
+      })
+    );
+  };
+
+  const toggleReviewLike = (productId: string, reviewId: string) => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id !== productId || !p.reviews) return p;
+        return {
+          ...p,
+          reviews: p.reviews.map((r) =>
+            r.id === reviewId ? { ...r, likes: (r.likes || 0) + 1 } : r
+          ),
+        };
+      })
+    );
+  };
+
   const resetStoreData = () => {
     setProducts(INITIAL_PRODUCTS);
     setCategories(INITIAL_CATEGORIES);
@@ -774,6 +856,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addLoyaltyGoal,
         updateLoyaltyGoal,
         deleteLoyaltyGoal,
+        addProductReview,
+        toggleReviewLike,
         resetStoreData,
       }}
     >

@@ -12,6 +12,12 @@ import {
   Sparkles,
   Zap,
   Heart,
+  ThumbsUp,
+  MessageSquare,
+  CheckCircle2,
+  PenLine,
+  UserCheck,
+  Lock,
 } from 'lucide-react';
 import { Product, ProductColor } from '../types/store';
 import { useCart } from '../context/CartContext';
@@ -33,35 +39,103 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   onRequireAuth,
 }) => {
   const { addItem } = useCart();
-  const { products, storeSettings } = useStore();
-  const { isFavorite, toggleFavorite, isAuthenticated } = useUser();
+  const { products, storeSettings, addProductReview, toggleReviewLike } = useStore();
+  const { isFavorite, toggleFavorite, isAuthenticated, currentUser } = useUser();
+  const activeProduct = products.find((p) => p.id === product.id) || product;
+
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedColor, setSelectedColor] = useState<ProductColor>(
-    product.colors[0] || { name: 'Padrão', hex: '#00f2fe' }
+    activeProduct.colors[0] || { name: 'Padrão', hex: '#00f2fe' }
   );
   const [selectedSize, setSelectedSize] = useState<string>(
-    product.sizes[0] || '39-42'
+    activeProduct.sizes[0] || '39-42'
   );
   const [quantity, setQuantity] = useState(1);
   const [addedSuccess, setAddedSuccess] = useState(false);
 
-  const isOutOfStock = !product.inStock || (product.stock !== undefined && product.stock <= 0);
+  // Review Form State
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [hoverRating, setHoverRating] = useState<number | null>(null);
+  const [reviewTitle, setReviewTitle] = useState('');
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSize, setReviewSize] = useState<string>(activeProduct.sizes[0] || '39-42');
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const [likedReviews, setLikedReviews] = useState<Record<string, boolean>>({});
+
+  const isOutOfStock = !activeProduct.inStock || (activeProduct.stock !== undefined && activeProduct.stock <= 0);
 
   // Scroll to top when product changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setSelectedImageIndex(0);
-    setSelectedColor(product.colors[0] || { name: 'Padrão', hex: '#00f2fe' });
-    setSelectedSize(product.sizes[0] || '39-42');
+    setSelectedColor(activeProduct.colors[0] || { name: 'Padrão', hex: '#00f2fe' });
+    setSelectedSize(activeProduct.sizes[0] || '39-42');
+    setReviewSize(activeProduct.sizes[0] || '39-42');
     setQuantity(1);
-  }, [product]);
+    setShowReviewForm(false);
+  }, [product.id]);
 
   const handleAddToCart = () => {
-    addItem(product, selectedSize, selectedColor, quantity);
+    addItem(activeProduct, selectedSize, selectedColor, quantity);
     setAddedSuccess(true);
     setTimeout(() => {
       setAddedSuccess(false);
     }, 1800);
+  };
+
+  const reviews = activeProduct.reviews || [];
+  const totalReviews = reviews.length;
+  const averageRating = activeProduct.rating || 5.0;
+
+  const starCounts = [5, 4, 3, 2, 1].map((stars) => {
+    const count = reviews.filter((r) => Math.round(r.rating) === stars).length;
+    const percentage = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
+    return { stars, count, percentage };
+  });
+
+  const handleSubmitReview = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAuthenticated || !currentUser) {
+      if (onRequireAuth) onRequireAuth();
+      return;
+    }
+    if (!reviewComment.trim()) {
+      setReviewError('Por favor escreve a tua opinião sobre a meia.');
+      return;
+    }
+    setReviewError('');
+
+    addProductReview(
+      activeProduct.id,
+      {
+        rating: reviewRating,
+        title: reviewTitle.trim() || undefined,
+        comment: reviewComment.trim(),
+        size: reviewSize,
+        color: selectedColor.name,
+      },
+      {
+        name: currentUser.name,
+        email: currentUser.email,
+        userId: currentUser.id,
+        tier: currentUser.tier,
+      }
+    );
+
+    setReviewTitle('');
+    setReviewComment('');
+    setReviewRating(5);
+    setShowReviewForm(false);
+    setReviewSubmitted(true);
+    setTimeout(() => setReviewSubmitted(false), 5000);
+  };
+
+  const handleLikeReview = (reviewId: string) => {
+    if (likedReviews[reviewId]) return;
+    toggleReviewLike(activeProduct.id, reviewId);
+    setLikedReviews((prev) => ({ ...prev, [reviewId]: true }));
   };
 
   // Related products from the same category or others
@@ -207,11 +281,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   {product.categoryName}
                 </span>
 
-                <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
+                <a
+                  href="#reviews-section"
+                  className="flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1 rounded-full transition-colors cursor-pointer"
+                >
                   <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                  <span className="text-xs font-bold text-amber-950">{product.rating.toFixed(1)}</span>
-                  <span className="text-[11px] text-amber-800">({product.reviewCount} avaliações)</span>
-                </div>
+                  <span className="text-xs font-bold text-amber-950">{averageRating.toFixed(1)}</span>
+                  <span className="text-[11px] text-amber-800 underline">({totalReviews} avaliações)</span>
+                </a>
               </div>
 
               {/* Title & Tagline */}
@@ -407,6 +484,344 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Customer Reviews & Ratings Section */}
+        <section id="reviews-section" className="mt-24 pt-16 border-t border-neutral-200">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-50 border border-cyan-200/60 text-cyan-700 text-xs font-semibold mb-3">
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Opiniões da Comunidade</span>
+              </div>
+              <h2 className="font-serif text-3xl sm:text-4xl text-black">
+                Avaliações de Atletas
+              </h2>
+              <p className="text-neutral-500 text-sm mt-2 max-w-xl">
+                Feedback real de atletas e praticantes que testaram estas meias em treinos, provas e recuperação.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {isAuthenticated ? (
+                <button
+                  onClick={() => setShowReviewForm(!showReviewForm)}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-black hover:bg-neutral-800 text-white text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer shadow-md hover:shadow-lg"
+                >
+                  <PenLine className="w-4 h-4 text-cyan-400" />
+                  <span>{showReviewForm ? 'Fechar Formulário' : 'Avaliar Produto'}</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => onRequireAuth && onRequireAuth()}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-neutral-900 hover:bg-black text-white text-xs font-semibold transition-all cursor-pointer shadow-md"
+                >
+                  <Lock className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Inicia Sessão para Avaliar</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Review Submitted Banner */}
+          {reviewSubmitted && (
+            <div className="mb-8 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-3 animate-fade-in">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+              <div className="text-sm">
+                <span className="font-bold">Obrigado pela tua avaliação!</span> A tua opinião foi publicada com sucesso e já está visível para a comunidade de atletas.
+              </div>
+            </div>
+          )}
+
+          {/* Interactive Review Form (Registered Users Only) */}
+          {showReviewForm && (
+            <div className="mb-12 p-6 sm:p-8 rounded-3xl bg-neutral-50 border border-neutral-200 shadow-sm animate-fade-in">
+              <div className="flex items-center justify-between pb-6 border-b border-neutral-200/80 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">
+                    {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'A'}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm text-black">{currentUser?.name}</span>
+                      <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold bg-cyan-100 text-cyan-800 px-2 py-0.5 rounded-full">
+                        <UserCheck className="w-3 h-3" />
+                        {currentUser?.tier || 'Atleta VYRO'}
+                      </span>
+                    </div>
+                    <span className="text-xs text-neutral-500">Avaliação verificada como cliente registado</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowReviewForm(false)}
+                  className="text-xs text-neutral-500 hover:text-black font-medium cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitReview} className="space-y-6">
+                {/* Rating Stars Picker */}
+                <div>
+                  <label className="block text-xs uppercase tracking-wider font-bold text-neutral-700 mb-2">
+                    A tua pontuação *
+                  </label>
+                  <div className="flex items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewRating(star)}
+                        onMouseEnter={() => setHoverRating(star)}
+                        onMouseLeave={() => setHoverRating(null)}
+                        className="p-1 text-neutral-300 hover:scale-110 transition-transform cursor-pointer focus:outline-none"
+                      >
+                        <Star
+                          className={`w-7 h-7 transition-colors ${
+                            star <= (hoverRating ?? reviewRating)
+                              ? 'text-amber-400 fill-amber-400'
+                              : 'text-neutral-300'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <span className="ml-3 text-sm font-semibold text-neutral-700">
+                      {(hoverRating ?? reviewRating) === 5 && 'Perfeito — 5/5'}
+                      {(hoverRating ?? reviewRating) === 4 && 'Muito Bom — 4/5'}
+                      {(hoverRating ?? reviewRating) === 3 && 'Bom — 3/5'}
+                      {(hoverRating ?? reviewRating) === 2 && 'Razoável — 2/5'}
+                      {(hoverRating ?? reviewRating) === 1 && 'Insuficiente — 1/5'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Size Tested */}
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider font-bold text-neutral-700 mb-2">
+                      Tamanho utilizado
+                    </label>
+                    <select
+                      value={reviewSize}
+                      onChange={(e) => setReviewSize(e.target.value)}
+                      className="w-full bg-white border border-neutral-300 rounded-xl px-4 py-3 text-sm font-medium text-neutral-900 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 cursor-pointer"
+                    >
+                      {activeProduct.sizes.map((s) => (
+                        <option key={s} value={s}>
+                          Tamanho {s}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Review Title */}
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider font-bold text-neutral-700 mb-2">
+                      Título (resumo)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Excelente suporte no calcanhar e respirabilidade"
+                      value={reviewTitle}
+                      onChange={(e) => setReviewTitle(e.target.value)}
+                      maxLength={100}
+                      className="w-full bg-white border border-neutral-300 rounded-xl px-4 py-3 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Comment Textarea */}
+                <div>
+                  <label className="block text-xs uppercase tracking-wider font-bold text-neutral-700 mb-2">
+                    A tua experiência detalhada *
+                  </label>
+                  <textarea
+                    rows={4}
+                    placeholder="Conta aos outros atletas: como sentiste a compressão, respirabilidade em treinos longos, ajuste no pé ou durabilidade após lavagem..."
+                    value={reviewComment}
+                    onChange={(e) => {
+                      setReviewComment(e.target.value);
+                      if (reviewError) setReviewError('');
+                    }}
+                    required
+                    className="w-full bg-white border border-neutral-300 rounded-2xl p-4 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                  />
+                  {reviewError && (
+                    <p className="text-rose-600 text-xs mt-1.5 font-medium">{reviewError}</p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowReviewForm(false)}
+                    className="px-5 py-2.5 rounded-full border border-neutral-300 text-xs font-semibold text-neutral-700 hover:border-black hover:text-black transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 rounded-full bg-black hover:bg-neutral-800 text-white text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer shadow-md"
+                  >
+                    Publicar Avaliação
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Rating Summary + Breakdown Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12 p-8 rounded-3xl bg-neutral-50/80 border border-neutral-200/80">
+            {/* Left: Overall Score */}
+            <div className="lg:col-span-4 flex flex-col justify-center items-center lg:items-start text-center lg:text-left border-b lg:border-b-0 lg:border-r border-neutral-200 pb-8 lg:pb-0 lg:pr-8">
+              <div className="font-serif text-6xl text-black font-bold tracking-tight">
+                {averageRating.toFixed(1)}
+              </div>
+              <div className="flex items-center gap-1 my-3">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star
+                    key={s}
+                    className={`w-5 h-5 ${
+                      s <= Math.round(averageRating)
+                        ? 'text-amber-400 fill-amber-400'
+                        : 'text-neutral-300'
+                    }`}
+                  />
+                ))}
+              </div>
+              <div className="text-xs text-neutral-500 font-medium">
+                Com base em <strong className="text-neutral-900">{totalReviews}</strong> {totalReviews === 1 ? 'avaliação' : 'avaliações'} de atletas
+              </div>
+              <div className="mt-4 inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/60">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>100% Avaliações Verificadas</span>
+              </div>
+            </div>
+
+            {/* Middle: Star Breakdown Bars */}
+            <div className="lg:col-span-8 flex flex-col justify-center gap-2.5">
+              {starCounts.map(({ stars, count, percentage }) => (
+                <div key={stars} className="flex items-center gap-3 text-xs">
+                  <div className="w-14 flex items-center justify-end gap-1 font-semibold text-neutral-700">
+                    <span>{stars}</span>
+                    <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                  </div>
+                  <div className="flex-1 h-2.5 bg-neutral-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-amber-400 rounded-full transition-all duration-500"
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                  <div className="w-12 text-right text-neutral-500 font-medium">
+                    {count}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Reviews List */}
+          {reviews.length === 0 ? (
+            <div className="text-center py-16 px-4 border border-dashed border-neutral-200 rounded-3xl">
+              <MessageSquare className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
+              <h4 className="text-base font-semibold text-black">Ainda não existem avaliações</h4>
+              <p className="text-xs text-neutral-500 mt-1 max-w-sm mx-auto">
+                Sê o primeiro atleta a partilhar a tua opinião sobre o desempenho deste modelo.
+              </p>
+              <div className="mt-5">
+                {isAuthenticated ? (
+                  <button
+                    onClick={() => setShowReviewForm(true)}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-black text-white text-xs font-semibold cursor-pointer"
+                  >
+                    <PenLine className="w-3.5 h-3.5" />
+                    <span>Escrever a Primeira Avaliação</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => onRequireAuth && onRequireAuth()}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-black text-white text-xs font-semibold cursor-pointer"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Inicia Sessão para Avaliar</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {reviews.map((rev) => (
+                <div
+                  key={rev.id}
+                  className="p-6 sm:p-7 rounded-2xl border border-neutral-200/90 bg-white hover:border-neutral-300 transition-colors shadow-xs"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4 mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-sm text-black">{rev.userName}</span>
+                        {rev.verifiedAthlete && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-full">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            Atleta Verificado
+                          </span>
+                        )}
+                        {rev.size && (
+                          <span className="text-[11px] font-medium text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded-md">
+                            Tam. {rev.size}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <div className="flex items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              className={`w-3.5 h-3.5 ${
+                                s <= rev.rating
+                                  ? 'text-amber-400 fill-amber-400'
+                                  : 'text-neutral-200'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-xs text-neutral-400 font-medium">
+                          • {new Date(rev.createdAt).toLocaleDateString('pt-PT', {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric',
+                            })}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleLikeReview(rev.id)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
+                        likedReviews[rev.id]
+                          ? 'bg-cyan-50 border-cyan-300 text-cyan-700'
+                          : 'border-neutral-200 text-neutral-500 hover:border-neutral-300 hover:text-neutral-800'
+                      }`}
+                      title="Marcar como útil"
+                    >
+                      <ThumbsUp className={`w-3.5 h-3.5 ${likedReviews[rev.id] ? 'fill-cyan-600 text-cyan-600' : ''}`} />
+                      <span>{rev.likes || 0} {rev.likes === 1 ? 'Útil' : 'Úteis'}</span>
+                    </button>
+                  </div>
+
+                  {rev.title && (
+                    <h4 className="font-semibold text-sm text-neutral-900 mb-1.5">
+                      {rev.title}
+                    </h4>
+                  )}
+                  <p className="text-neutral-600 text-xs sm:text-sm leading-relaxed">
+                    {rev.comment}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
 
         {/* Related Products Section */}
         {relatedProducts.length > 0 && (
